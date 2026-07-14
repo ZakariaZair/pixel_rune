@@ -12,6 +12,7 @@
 
 - [x] Create `src/features/runes` data model.
 - [x] Add default Rune presets.
+- [x] Expand default Rune presets with widget-friendly 16×16 options.
 - [x] Add Rune preview component.
 - [x] Add active Rune selection state.
 - [x] Persist active Rune locally.

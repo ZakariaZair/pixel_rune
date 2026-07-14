@@ -2,18 +2,22 @@
 
 ## Status
 
-Completed local Rune MVP foundation, local active Rune persistence, and iOS WidgetKit proof-of-concept scaffold.
+Local Rune MVP foundation is complete and still passing validation. The latest
+app changes keep the Rune screen focused by using a horizontal default-Rune
+selector and replace oversized generated Rune presets with widget-friendlier
+16×16 presets.
 
 ## Completed task
 
 Implemented the local Rune MVP foundation only:
 
 - Rune TypeScript model.
-- Default Rune presets.
+- Default Rune presets, including 8×8 and 16×16 serializable Runes.
 - Rune preview component.
 - Active Rune selection state in the app.
 - Active Rune persistence across app restarts.
 - Active Rune payload serializer suitable for later widget handoff.
+- Rune-focused app screen with diagnostics/config moved behind tabs.
 
 Added the native iOS widget scaffold:
 
@@ -33,6 +37,24 @@ Added the native iOS widget scaffold:
 - TypeScript passes with `npm run typecheck`.
 - Native widget proof-of-concept is configured through Expo prebuild/CNG.
 - No Supabase sharing, RevenueCat paywall, or custom editor is added yet.
+
+## Latest validation
+
+- `npm run typecheck` passes.
+- `npx expo-doctor` was not rerun for the latest reevaluation because the
+  current modified files are app UI/data files only, not dependencies, Expo
+  native modules, or app config.
+
+## Current recommended task
+
+Implement the app-to-widget payload writer bridge:
+
+- write the serialized active Rune payload to App Group `UserDefaults` key
+  `activeRunePayload`;
+- request a WidgetKit timeline reload after active Rune changes;
+- keep Expo Go behavior safe by no-oping or showing clear fallback messaging
+  when the native bridge is unavailable;
+- document that this requires a development build/prebuild, not Expo Go.
 
 ## Notes
 

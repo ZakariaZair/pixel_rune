@@ -12,162 +12,102 @@ function pixelsFromRows(rows: readonly string[], palette: Record<string, HexColo
   );
 }
 
-function largeSigilPixels(size: 32 | 64): RunePixel[] {
-  const center = (size - 1) / 2;
-  const stroke = size === 32 ? 0.75 : 1.35;
-  const pixels: RunePixel[] = [];
-
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const dx = x - center;
-      const dy = y - center;
-      const absX = Math.abs(dx);
-      const absY = Math.abs(dy);
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const manhattanDistance = absX + absY;
-      const isOuterCircle = Math.abs(distance - size * 0.36) <= stroke;
-      const isInnerCircle = Math.abs(distance - size * 0.16) <= stroke * 0.8;
-      const isDiamond = Math.abs(manhattanDistance - size * 0.46) <= stroke;
-      const isVerticalBeam = absX <= stroke && distance <= size * 0.27;
-      const isHorizontalBeam = absY <= stroke && distance <= size * 0.27;
-      const isDiagonalCut =
-        Math.abs(absX - absY) <= stroke && distance >= size * 0.18 && distance <= size * 0.31;
-      const isCornerMark =
-        absX >= size * 0.31 &&
-        absX <= size * 0.4 &&
-        absY >= size * 0.31 &&
-        absY <= size * 0.4 &&
-        Math.abs(absX - absY) <= stroke * 1.25;
-
-      let color: HexColor | undefined;
-
-      if (isVerticalBeam || isHorizontalBeam) {
-        color = '#F8FBFF';
-      } else if (isInnerCircle || isDiagonalCut) {
-        color = '#61F2FF';
-      } else if (isDiamond) {
-        color = '#9D8CFF';
-      } else if (isOuterCircle || isCornerMark) {
-        color = '#6E56CF';
-      }
-
-      if (color) {
-        pixels.push({ x, y, color });
-      }
-    }
-  }
-
-  return pixels;
-}
-
 export const defaultRunes = [
   {
     id: 'heart-default',
     name: 'Heart',
-    width: 8,
-    height: 8,
+    width: 16,
+    height: 16,
     backgroundColor: PIXEL_RUNE_BACKGROUND,
-    pixels: [
-      { x: 1, y: 1, color: '#FF4D8D' },
-      { x: 2, y: 1, color: '#FF4D8D' },
-      { x: 5, y: 1, color: '#FF4D8D' },
-      { x: 6, y: 1, color: '#FF4D8D' },
-      { x: 0, y: 2, color: '#FF4D8D' },
-      { x: 1, y: 2, color: '#FF7AAF' },
-      { x: 2, y: 2, color: '#FF7AAF' },
-      { x: 3, y: 2, color: '#FF4D8D' },
-      { x: 4, y: 2, color: '#FF4D8D' },
-      { x: 5, y: 2, color: '#FF7AAF' },
-      { x: 6, y: 2, color: '#FF7AAF' },
-      { x: 7, y: 2, color: '#FF4D8D' },
-      { x: 0, y: 3, color: '#FF4D8D' },
-      { x: 1, y: 3, color: '#FF7AAF' },
-      { x: 2, y: 3, color: '#FF7AAF' },
-      { x: 3, y: 3, color: '#FF7AAF' },
-      { x: 4, y: 3, color: '#FF7AAF' },
-      { x: 5, y: 3, color: '#FF7AAF' },
-      { x: 6, y: 3, color: '#FF7AAF' },
-      { x: 7, y: 3, color: '#FF4D8D' },
-      { x: 1, y: 4, color: '#FF4D8D' },
-      { x: 2, y: 4, color: '#FF7AAF' },
-      { x: 3, y: 4, color: '#FF7AAF' },
-      { x: 4, y: 4, color: '#FF7AAF' },
-      { x: 5, y: 4, color: '#FF7AAF' },
-      { x: 6, y: 4, color: '#FF4D8D' },
-      { x: 2, y: 5, color: '#FF4D8D' },
-      { x: 3, y: 5, color: '#FF7AAF' },
-      { x: 4, y: 5, color: '#FF7AAF' },
-      { x: 5, y: 5, color: '#FF4D8D' },
-      { x: 3, y: 6, color: '#FF4D8D' },
-      { x: 4, y: 6, color: '#FF4D8D' },
-    ],
+    pixels: pixelsFromRows(
+      [
+        '................',
+        '................',
+        '................',
+        '....RR....RR....',
+        '...RLLR..RLLR...',
+        '..RLLLLRRLLLLR..',
+        '..RLLLLLLLLLLR..',
+        '..RLLLLLLLLLLR..',
+        '...RLLLLLLLLR...',
+        '....RLLLLLLR....',
+        '.....RLLLLR.....',
+        '......RLLR......',
+        '.......RR.......',
+        '................',
+        '................',
+        '................',
+      ],
+      {
+        L: '#FF7AAF',
+        R: '#FF4D8D',
+      },
+    ),
   },
   {
     id: 'moon-default',
     name: 'Moon',
-    width: 8,
-    height: 8,
+    width: 16,
+    height: 16,
     backgroundColor: '#0D1324',
-    pixels: [
-      { x: 4, y: 0, color: '#F8E8A0' },
-      { x: 5, y: 0, color: '#F8E8A0' },
-      { x: 3, y: 1, color: '#F8E8A0' },
-      { x: 4, y: 1, color: '#FFF4C8' },
-      { x: 2, y: 2, color: '#F8E8A0' },
-      { x: 3, y: 2, color: '#FFF4C8' },
-      { x: 2, y: 3, color: '#F8E8A0' },
-      { x: 3, y: 3, color: '#FFF4C8' },
-      { x: 2, y: 4, color: '#F8E8A0' },
-      { x: 3, y: 4, color: '#FFF4C8' },
-      { x: 3, y: 5, color: '#F8E8A0' },
-      { x: 4, y: 5, color: '#FFF4C8' },
-      { x: 4, y: 6, color: '#F8E8A0' },
-      { x: 5, y: 6, color: '#F8E8A0' },
-      { x: 6, y: 1, color: '#8BA7FF' },
-      { x: 7, y: 3, color: '#8BA7FF' },
-      { x: 6, y: 6, color: '#8BA7FF' },
-    ],
+    pixels: pixelsFromRows(
+      [
+        '................',
+        '..........S.....',
+        '.......MMMM.....',
+        '.....MMLLMM.....',
+        '....MLLLM.......',
+        '...MLLLM........',
+        '...MLLLM....S...',
+        '..MLLLLM........',
+        '..MLLLLM........',
+        '...MLLLM........',
+        '...MLLLLM.......',
+        '....MLLLMM......',
+        '.....MMLLMMM....',
+        '.......MMMM.....',
+        '..........S.....',
+        '................',
+      ],
+      {
+        L: '#FFF4C8',
+        M: '#F8E8A0',
+        S: '#8BA7FF',
+      },
+    ),
   },
   {
     id: 'spark-default',
     name: 'Spark',
-    width: 8,
-    height: 8,
+    width: 16,
+    height: 16,
     backgroundColor: '#11111A',
-    pixels: [
-      { x: 3, y: 0, color: '#FFE66D' },
-      { x: 4, y: 0, color: '#FFE66D' },
-      { x: 3, y: 1, color: '#FFF5A8' },
-      { x: 4, y: 1, color: '#FFF5A8' },
-      { x: 2, y: 2, color: '#FFE66D' },
-      { x: 3, y: 2, color: '#FFFFFF' },
-      { x: 4, y: 2, color: '#FFFFFF' },
-      { x: 5, y: 2, color: '#FFE66D' },
-      { x: 0, y: 3, color: '#FFB347' },
-      { x: 1, y: 3, color: '#FFE66D' },
-      { x: 2, y: 3, color: '#FFFFFF' },
-      { x: 3, y: 3, color: '#FFFFFF' },
-      { x: 4, y: 3, color: '#FFFFFF' },
-      { x: 5, y: 3, color: '#FFFFFF' },
-      { x: 6, y: 3, color: '#FFE66D' },
-      { x: 7, y: 3, color: '#FFB347' },
-      { x: 0, y: 4, color: '#FFB347' },
-      { x: 1, y: 4, color: '#FFE66D' },
-      { x: 2, y: 4, color: '#FFFFFF' },
-      { x: 3, y: 4, color: '#FFFFFF' },
-      { x: 4, y: 4, color: '#FFFFFF' },
-      { x: 5, y: 4, color: '#FFFFFF' },
-      { x: 6, y: 4, color: '#FFE66D' },
-      { x: 7, y: 4, color: '#FFB347' },
-      { x: 2, y: 5, color: '#FFE66D' },
-      { x: 3, y: 5, color: '#FFFFFF' },
-      { x: 4, y: 5, color: '#FFFFFF' },
-      { x: 5, y: 5, color: '#FFE66D' },
-      { x: 3, y: 6, color: '#FFF5A8' },
-      { x: 4, y: 6, color: '#FFF5A8' },
-      { x: 3, y: 7, color: '#FFE66D' },
-      { x: 4, y: 7, color: '#FFE66D' },
-    ],
+    pixels: pixelsFromRows(
+      [
+        '................',
+        '.......YY.......',
+        '.......LL.......',
+        '......YWWY......',
+        '......LWWL......',
+        '.....YWWWWY.....',
+        '..OYLLWWWWLLYO..',
+        '.OYLLWWWWWWLLYO.',
+        '.OYLLWWWWWWLLYO.',
+        '..OYLLWWWWLLYO..',
+        '.....YWWWWY.....',
+        '......LWWL......',
+        '......YWWY......',
+        '.......LL.......',
+        '.......YY.......',
+        '................',
+      ],
+      {
+        L: '#FFF5A8',
+        O: '#FFB347',
+        W: '#FFFFFF',
+        Y: '#FFE66D',
+      },
+    ),
   },
   {
     id: 'guardian-16-default',
@@ -202,20 +142,103 @@ export const defaultRunes = [
     ),
   },
   {
-    id: 'sigil-32-default',
-    name: 'Sigil 32',
-    width: 32,
-    height: 32,
-    backgroundColor: '#070914',
-    pixels: largeSigilPixels(32),
+    id: 'foxfire-default',
+    name: 'Foxfire',
+    width: 16,
+    height: 16,
+    backgroundColor: '#090815',
+    pixels: pixelsFromRows(
+      [
+        '................',
+        '...O........O...',
+        '..ORO......ORO..',
+        '..ORRO....ORRO..',
+        '...ORR....RRO...',
+        '....ORLLLLRO....',
+        '....RLWLLWLR....',
+        '...RLLWLLWLLR...',
+        '...RLLLLLLLLR...',
+        '....RLLWWLLR....',
+        '.....RLLLLR.....',
+        '......RLLR......',
+        '......ORRO......',
+        '.....O....O.....',
+        '................',
+        '................',
+      ],
+      {
+        L: '#FFE2A8',
+        O: '#FF9F1C',
+        R: '#FF5E5B',
+        W: '#FFFFFF',
+      },
+    ),
   },
   {
-    id: 'temple-64-default',
-    name: 'Temple 64',
-    width: 64,
-    height: 64,
-    backgroundColor: '#050711',
-    pixels: largeSigilPixels(64),
+    id: 'mushroom-oracle-default',
+    name: 'Mushroom Oracle',
+    width: 16,
+    height: 16,
+    backgroundColor: '#08110D',
+    pixels: pixelsFromRows(
+      [
+        '................',
+        '......GGGG......',
+        '....GGRRRRGG....',
+        '...GRRWRRWRRG...',
+        '..GRRRRRRRRRRG..',
+        '..GRWGRRRRGWRG..',
+        '...GRRRWWRRRG...',
+        '....GGRTTRGG....',
+        '......TTTT......',
+        '.....TFFFFT.....',
+        '.....TFFFFT.....',
+        '....TTFFFFTT....',
+        '...G..TFFT..G...',
+        '..G...TFFT...G..',
+        '......GGGG......',
+        '................',
+      ],
+      {
+        F: '#F7D6A5',
+        G: '#70E000',
+        R: '#C9184A',
+        T: '#8D5A3B',
+        W: '#FFFFFF',
+      },
+    ),
+  },
+  {
+    id: 'storm-eye-default',
+    name: 'Storm Eye',
+    width: 16,
+    height: 16,
+    backgroundColor: '#07101E',
+    pixels: pixelsFromRows(
+      [
+        '................',
+        '................',
+        '.......BB.......',
+        '......BWWB......',
+        '...B..BWWB..B...',
+        '....B.BCCB.B....',
+        '.....BBCBB......',
+        '..BBBBCCCCBBBB..',
+        '..BBBBCCCCBBBB..',
+        '.....BBCBB......',
+        '....B.BCCB.B....',
+        '...B..BWWB..B...',
+        '......BWWB......',
+        '.......BB.......',
+        '................',
+        '................',
+      ],
+      {
+        B: '#4D96FF',
+        C: '#6FFFE9',
+        W: '#EAFBFF',
+      },
+    ),
   },
 ] as const satisfies readonly Rune[];
 

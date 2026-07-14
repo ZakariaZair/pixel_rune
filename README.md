@@ -2,6 +2,21 @@
 
 App mobile Expo + React Native + TypeScript prête pour iOS et Android.
 
+## Agent workflow
+
+Ce repo est configuré pour travailler avec des discussions Zed/Codex spécialisées.
+
+- Instructions principales: `AGENTS.md`
+- Exigences produit: `docs/requirements.md`
+- Architecture technique: `docs/architecture.md`
+- Plan communication/network: `docs/network.md`
+- Décisions durables: `docs/decisions.md`
+- Tâche active: `tasks/current.md`
+- Backlog: `tasks/backlog.md`
+- Prompts initiaux par agent: `AGENT_DISCUSSION_INSTRUCTIONS.txt`
+
+Avant de lancer une nouvelle discussion agent, choisis un rôle dans `AGENT_DISCUSSION_INSTRUCTIONS.txt`, colle le prompt correspondant, puis donne une tâche précise.
+
 ## Lancer en local
 
 ```bash

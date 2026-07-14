@@ -40,3 +40,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Agentic
+AGENT_DISCUSSION_INSTRUCTIONS.txt

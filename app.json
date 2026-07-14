@@ -24,7 +24,17 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "@sentry/react-native"
+      "@sentry/react-native",
+      [
+        "./plugins/withPixelRuneWidget",
+        {
+          "widgetTargetName": "PixelRuneWidget",
+          "widgetBundleIdentifier": "com.pixelrune.app.widget",
+          "appGroupIdentifier": "group.com.pixelrune.app",
+          "widgetDisplayName": "Pixel Rune",
+          "widgetDescription": "Displays your active Rune."
+        }
+      ]
     ]
   }
 }

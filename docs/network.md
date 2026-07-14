@@ -57,10 +57,12 @@ Current native proof-of-concept details:
 - Payload encoding: UTF-8 JSON string matching the active Rune payload below.
 - Widget behavior: read on snapshot/timeline generation; render fallback if
   missing or invalid.
+- App writer bridge: generated native module `PixelRuneWidgetBridge`.
+- JavaScript wrapper: `src/features/runes/widgetSync.ts`.
+- Reload request: `WidgetCenter.reloadTimelines(ofKind: "PixelRuneWidget")`.
 
-The JavaScript app writer and timeline reload bridge are not implemented yet.
-They should be added as a narrow native bridge or Expo module after the local
-Rune model and serializer are stable.
+The bridge is available only in an iOS development/prebuild build. Expo Go,
+Android, and web safely report the bridge as unavailable instead of failing.
 
 ## Active Rune payload
 

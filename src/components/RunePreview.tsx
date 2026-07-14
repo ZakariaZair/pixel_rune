@@ -14,6 +14,8 @@ const MIN_FADE_OPACITY = 0.18;
 
 function RunePreviewComponent({ rune, animationEnabled = false, size = 192 }: RunePreviewProps) {
   const pixelSize = size / Math.max(rune.width, rune.height);
+  const previewHeight = rune.height * pixelSize;
+  const previewWidth = rune.width * pixelSize;
   const opacity = useRef(new Animated.Value(1)).current;
   const animationType = rune.animation?.type ?? 'none';
   const animationDuration = rune.animation?.durationMs ?? 900;
@@ -70,29 +72,31 @@ function RunePreviewComponent({ rune, animationEnabled = false, size = 192 }: Ru
         styles.frame,
         {
           backgroundColor: rune.backgroundColor ?? '#F3EEDC',
-          height: rune.height * pixelSize,
+          height: previewHeight + styles.frame.borderWidth * 2,
           opacity,
-          width: rune.width * pixelSize,
+          width: previewWidth + styles.frame.borderWidth * 2,
         },
       ]}
     >
-      {Array.from({ length: rune.height }).map((_, y) => (
-        <View key={`row-${y}`} style={styles.row}>
-          {Array.from({ length: rune.width }).map((__, x) => (
-            <View
-              key={`${x}:${y}`}
-              style={[
-                styles.pixel,
-                {
-                  backgroundColor: pixelColors.get(`${x}:${y}`) ?? EMPTY_PIXEL_COLOR,
-                  height: pixelSize,
-                  width: pixelSize,
-                },
-              ]}
-            />
-          ))}
-        </View>
-      ))}
+      <View style={{ height: previewHeight, width: previewWidth }}>
+        {Array.from({ length: rune.height }).map((_, y) => (
+          <View key={`row-${y}`} style={styles.row}>
+            {Array.from({ length: rune.width }).map((__, x) => (
+              <View
+                key={`${x}:${y}`}
+                style={[
+                  styles.pixel,
+                  {
+                    backgroundColor: pixelColors.get(`${x}:${y}`) ?? EMPTY_PIXEL_COLOR,
+                    height: pixelSize,
+                    width: pixelSize,
+                  },
+                ]}
+              />
+            ))}
+          </View>
+        ))}
+      </View>
     </Animated.View>
   );
 }
@@ -105,6 +109,7 @@ const styles = StyleSheet.create({
     borderColor: '#2E2A1F',
     borderRadius: 8,
     borderWidth: 2,
+    padding: 0,
     overflow: 'hidden',
   },
   row: {

@@ -1,0 +1,32 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="paperGrid" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M64 0H0V64" stroke="#292820" stroke-opacity="0.08" stroke-width="4"/>
+    </pattern>
+    <pattern id="pixelGrid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" stroke="#2B2A2F" stroke-width="3"/>
+    </pattern>
+    <filter id="hardShadow" x="112" y="114" width="816" height="826" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="0" flood-color="#292820" flood-opacity="1"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" fill="#F3EFDF"/>
+  <rect width="1024" height="1024" fill="url(#paperGrid)"/>
+
+  <g filter="url(#hardShadow)">
+    <rect x="154" y="134" width="716" height="716" rx="50" fill="#FFFDF2" stroke="#292820" stroke-width="18"/>
+    <rect x="154" y="720" width="716" height="130" rx="50" fill="#F0A52B"/>
+    <path d="M154 720H870V800C870 827.614 847.614 850 820 850H204C176.386 850 154 827.614 154 800V720Z" stroke="#292820" stroke-width="18"/>
+
+    <rect x="284" y="226" width="456" height="456" rx="28" fill="#111116" stroke="#292820" stroke-width="14"/>
+    <rect x="304" y="246" width="416" height="416" fill="url(#pixelGrid)" opacity="0.72"/>
+
+    <g shape-rendering="crispEdges">
+      <path d="M512 274H584V346H656V418H728V490H656V562H584V634H512V706H440V634H368V562H296V490H368V418H440V346H512V274Z" fill="#F0A52B"/>
+      <path d="M512 346H584V418H512V346ZM440 418H512V490H440V418ZM512 490H584V562H512V490ZM440 562H512V634H440V562ZM512 634H584V706H512V634Z" fill="#FF5C93"/>
+      <path d="M368 490H440V562H368V490ZM584 490H656V562H584V490Z" fill="#FFF2A6"/>
+      <path d="M512 274H584V346H512V274ZM296 490H368V562H296V490ZM656 418H728V490H656V418Z" fill="#FFD766"/>
+    </g>
+  </g>
+</svg>

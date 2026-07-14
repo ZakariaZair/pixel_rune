@@ -2,6 +2,7 @@ export { loadPersistedActiveRuneId, persistActiveRuneId } from './activeRuneStor
 export { loadPersistedCustomRunes, persistCustomRunes } from './customRuneStorage';
 export { defaultRunes, getDefaultRuneById } from './defaultRunes';
 export { createActiveRunePayload } from './payload';
+export { syncActiveRunePayloadToWidget, type WidgetSyncState } from './widgetSync';
 export {
   createBlankRuneDraft,
   createCustomRune,

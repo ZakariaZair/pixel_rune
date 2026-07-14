@@ -24,7 +24,7 @@
 - [x] Choose Expo native integration approach: local config plugin with CNG/prebuild.
 - [x] Create small iOS WidgetKit proof of concept.
 - [x] Configure App Group in generated app/widget entitlements.
-- [ ] Write active Rune payload from app to shared storage.
+- [x] Write active Rune payload from app to shared storage.
 - [x] Render active Rune in SwiftUI widget.
 - [x] Add widget placeholder/fallback state for missing or invalid payloads.
 - [x] Document widget testing workflow.

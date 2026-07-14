@@ -157,10 +157,14 @@ without committing generated native folders before the widget target has been
 validated in Xcode.
 
 The first proof of concept renders the active Rune payload from App Group
-`UserDefaults` key `activeRunePayload`. The React Native app still needs a small
-native bridge or compatible Expo module to write that key and request a widget
-timeline reload from JavaScript. Until that bridge exists, the widget shows its
-safe fallback Rune.
+`UserDefaults` key `activeRunePayload`. The local config plugin also generates a
+small app-target native bridge, `PixelRuneWidgetBridge`, that writes the
+serialized payload from JavaScript into the App Group and requests
+`WidgetCenter.reloadTimelines(ofKind: "PixelRuneWidget")`.
+
+The JavaScript wrapper lives in `src/features/runes/widgetSync.ts`. It no-ops
+with a clear unavailable state outside iOS development/prebuild builds, because
+Expo Go cannot include this custom native bridge.
 
 ## Motion architecture
 

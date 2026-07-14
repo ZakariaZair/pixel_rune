@@ -1,0 +1,14 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="pixelGrid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" stroke="#2B2A2F" stroke-width="3"/>
+    </pattern>
+  </defs>
+  <rect x="244" y="188" width="536" height="536" rx="34" fill="#111116" stroke="#292820" stroke-width="18"/>
+  <rect x="268" y="212" width="488" height="488" fill="url(#pixelGrid)" opacity="0.72"/>
+  <g shape-rendering="crispEdges">
+    <path d="M512 236H584V308H656V380H728V452H656V524H584V596H512V668H440V596H368V524H296V452H368V380H440V308H512V236Z" fill="#F0A52B"/>
+    <path d="M512 308H584V380H512V308ZM440 380H512V452H440V380ZM512 452H584V524H512V452ZM440 524H512V596H440V524ZM512 596H584V668H512V596Z" fill="#FF5C93"/>
+    <path d="M368 452H440V524H368V452ZM584 452H656V524H584V452Z" fill="#FFF2A6"/>
+  </g>
+</svg>

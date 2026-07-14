@@ -18,6 +18,7 @@ import {
   loadPersistedActiveRuneId,
   persistCustomRunes,
   persistActiveRuneId,
+  syncActiveRunePayloadToWidget,
   updateCustomRune,
   upsertPixel,
   type HexColor,
@@ -63,6 +64,7 @@ export default function App() {
   const [draftAnimationType, setDraftAnimationType] = useState<RuneAnimationType>('none');
   const [draftPixels, setDraftPixels] = useState<RunePixel[]>([]);
   const [selectedColor, setSelectedColor] = useState<HexColor>(colorPalette[0]);
+  const [widgetSyncMessage, setWidgetSyncMessage] = useState('Widget sync pending native bridge.');
   const [mountedTabs, setMountedTabs] = useState<Record<TabId, boolean>>({
     rune: true,
     customize: false,
@@ -207,6 +209,43 @@ export default function App() {
     defaultRunes[0];
   const activeRunePayload = useMemo(() => createActiveRunePayload(activeRune), [activeRune]);
 
+  useEffect(() => {
+    if (!hasLoadedActiveRune || !hasLoadedCustomRunes) {
+      return;
+    }
+
+    let isCurrent = true;
+
+    async function syncWidgetPayload() {
+      try {
+        const syncState = await syncActiveRunePayloadToWidget(activeRunePayload);
+
+        if (!isCurrent) {
+          return;
+        }
+
+        if (syncState.status === 'synced') {
+          setWidgetSyncMessage(`Widget payload synced: ${activeRunePayload.rune.name}`);
+          return;
+        }
+
+        setWidgetSyncMessage(syncState.reason);
+      } catch (error) {
+        if (isCurrent) {
+          const message = error instanceof Error ? error.message : String(error);
+          setWidgetSyncMessage(`Widget sync failed: ${message}`);
+          logWarn('Runes', 'Failed to sync active Rune payload to widget', { error: message });
+        }
+      }
+    }
+
+    void syncWidgetPayload();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [activeRunePayload, hasLoadedActiveRune, hasLoadedCustomRunes]);
+
   function toggleDraftPixel(x: number, y: number) {
     setDraftPixels((currentPixels) => upsertPixel(currentPixels, x, y, selectedColor));
   }
@@ -337,6 +376,7 @@ export default function App() {
                   <Text style={styles.persistenceHint}>
                     {hasLoadedActiveRune ? 'Saved locally on this device' : 'Loading saved Rune…'}
                   </Text>
+                  <Text style={styles.widgetHint}>{widgetSyncMessage}</Text>
                 </View>
 
                 <View style={styles.selectorCard}>
@@ -802,6 +842,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 16,
     marginTop: 6,
+    textAlign: 'center',
+  },
+  widgetHint: {
+    color: '#625B48',
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+    marginTop: 4,
     textAlign: 'center',
   },
   animationHint: {

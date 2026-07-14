@@ -6,9 +6,11 @@ const { withDangerousMod, withEntitlementsPlist, withXcodeProject } = require('@
 const DEFAULT_WIDGET_TARGET_NAME = 'PixelRuneWidget';
 const DEFAULT_WIDGET_DISPLAY_NAME = 'Pixel Rune';
 const DEFAULT_WIDGET_DESCRIPTION = 'Displays your active Rune.';
+const BRIDGE_GROUP_NAME = 'PixelRuneWidgetBridge';
 
 function withPixelRuneWidget(config, props = {}) {
   const bundleIdentifier = getBundleIdentifier(config);
+  const appVersion = config.version ?? '1.0.0';
   const widgetTargetName = props.widgetTargetName ?? DEFAULT_WIDGET_TARGET_NAME;
   const widgetBundleIdentifier = props.widgetBundleIdentifier ?? `${bundleIdentifier}.widget`;
   const appGroupIdentifier = props.appGroupIdentifier ?? `group.${bundleIdentifier}`;
@@ -36,6 +38,11 @@ function withPixelRuneWidget(config, props = {}) {
         widgetDisplayName: props.widgetDisplayName ?? DEFAULT_WIDGET_DISPLAY_NAME,
         widgetTargetName,
       });
+      writeWidgetBridgeFiles({
+        appGroupIdentifier,
+        projectRoot: config.modRequest.projectRoot,
+        widgetTargetName,
+      });
 
       return config;
     },
@@ -43,10 +50,12 @@ function withPixelRuneWidget(config, props = {}) {
 
   config = withXcodeProject(config, (config) => {
     config.modResults = addWidgetTargetToXcodeProject(config.modResults, {
+      appVersion,
       appGroupIdentifier,
       widgetBundleIdentifier,
       widgetTargetName,
     });
+    config.modResults = addWidgetBridgeToXcodeProject(config.modResults);
 
     return config;
   });
@@ -89,7 +98,26 @@ function writeWidgetFiles({
   );
 }
 
+function writeWidgetBridgeFiles({
+  appGroupIdentifier,
+  projectRoot,
+  widgetTargetName,
+}) {
+  const bridgeDirectory = path.join(projectRoot, 'ios', BRIDGE_GROUP_NAME);
+
+  fs.mkdirSync(bridgeDirectory, { recursive: true });
+  fs.writeFileSync(
+    path.join(bridgeDirectory, 'PixelRuneWidgetBridge.swift'),
+    createWidgetBridgeSwift({ appGroupIdentifier, widgetTargetName }),
+  );
+  fs.writeFileSync(
+    path.join(bridgeDirectory, 'PixelRuneWidgetBridge.m'),
+    createWidgetBridgeObjC(),
+  );
+}
+
 function addWidgetTargetToXcodeProject(project, {
+  appVersion,
   widgetBundleIdentifier,
   widgetTargetName,
 }) {
@@ -110,7 +138,7 @@ function addWidgetTargetToXcodeProject(project, {
   addGroupToMainGroup(project, group.uuid, widgetTargetName);
 
   project.addSourceFile(
-    `${widgetTargetName}/PixelRuneWidget.swift`,
+    'PixelRuneWidget.swift',
     { target: targetUuid },
     group.uuid,
   );
@@ -118,11 +146,76 @@ function addWidgetTargetToXcodeProject(project, {
   project.addFramework('SwiftUI.framework', { target: targetUuid, weak: false });
 
   updateWidgetBuildSettings(project, target.pbxNativeTarget.buildConfigurationList, {
+    appVersion,
     widgetBundleIdentifier,
     widgetTargetName,
   });
 
   return project;
+}
+
+function addWidgetBridgeToXcodeProject(project) {
+  const appTargetUuid = project.getFirstTarget()?.uuid;
+
+  if (!appTargetUuid) {
+    return project;
+  }
+
+  const group =
+    findGroupByName(project, BRIDGE_GROUP_NAME) ??
+    project.addPbxGroup([], BRIDGE_GROUP_NAME, BRIDGE_GROUP_NAME);
+
+  addGroupToMainGroup(project, group.uuid ?? group, BRIDGE_GROUP_NAME);
+  addSourceFileIfMissing(project, 'PixelRuneWidgetBridge.swift', appTargetUuid, group.uuid ?? group);
+  addSourceFileIfMissing(project, 'PixelRuneWidgetBridge.m', appTargetUuid, group.uuid ?? group);
+  addFrameworkIfMissing(project, 'WidgetKit.framework', appTargetUuid);
+
+  return project;
+}
+
+function findGroupByName(project, groupName) {
+  const groupKey = project.findPBXGroupKey({ name: groupName }) ?? project.findPBXGroupKey({ path: groupName });
+
+  if (!groupKey) {
+    return null;
+  }
+
+  return {
+    uuid: groupKey,
+    pbxGroup: project.hash.project.objects.PBXGroup[groupKey],
+  };
+}
+
+function addSourceFileIfMissing(project, filePath, targetUuid, groupUuid) {
+  const fileReferenceSection = project.pbxFileReferenceSection();
+  const hasFileReference = Object.values(fileReferenceSection).some(
+    (fileReference) =>
+      fileReference &&
+      typeof fileReference === 'object' &&
+      (fileReference.path === filePath || fileReference.path === `"${filePath}"`),
+  );
+
+  if (hasFileReference) {
+    return;
+  }
+
+  project.addSourceFile(filePath, { target: targetUuid }, groupUuid);
+}
+
+function addFrameworkIfMissing(project, frameworkPath, targetUuid) {
+  const frameworkSection = project.pbxFileReferenceSection();
+  const hasFramework = Object.values(frameworkSection).some(
+    (fileReference) =>
+      fileReference &&
+      typeof fileReference === 'object' &&
+      fileReference.path === frameworkPath,
+  );
+
+  if (hasFramework) {
+    return;
+  }
+
+  project.addFramework(frameworkPath, { target: targetUuid, weak: false });
 }
 
 function addGroupToMainGroup(project, groupUuid, groupName) {
@@ -144,7 +237,67 @@ function addGroupToMainGroup(project, groupUuid, groupName) {
   }
 }
 
+function createWidgetBridgeSwift({ appGroupIdentifier, widgetTargetName }) {
+  return `import Foundation
+import React
+import WidgetKit
+
+@objc(PixelRuneWidgetBridge)
+class PixelRuneWidgetBridge: NSObject {
+    private let appGroupIdentifier = "${appGroupIdentifier}"
+    private let activeRunePayloadKey = "activeRunePayload"
+    private let widgetKind = "${widgetTargetName}"
+
+    @objc
+    static func requiresMainQueueSetup() -> Bool {
+        false
+    }
+
+    @objc(writeActiveRunePayload:resolver:rejecter:)
+    func writeActiveRunePayload(
+        _ payloadJson: String,
+        resolver resolve: RCTPromiseResolveBlock,
+        rejecter reject: RCTPromiseRejectBlock
+    ) {
+        guard let userDefaults = UserDefaults(suiteName: appGroupIdentifier) else {
+            reject("ERR_APP_GROUP_UNAVAILABLE", "App Group shared UserDefaults is unavailable.", nil)
+            return
+        }
+
+        userDefaults.set(payloadJson, forKey: activeRunePayloadKey)
+        userDefaults.synchronize()
+
+        if #available(iOS 14.0, *) {
+            WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
+        }
+
+        resolve([
+            "appGroupIdentifier": appGroupIdentifier,
+            "key": activeRunePayloadKey,
+            "widgetKind": widgetKind
+        ])
+    }
+}
+`;
+}
+
+function createWidgetBridgeObjC() {
+  return `#import <React/RCTBridgeModule.h>
+
+@interface RCT_EXTERN_MODULE(PixelRuneWidgetBridge, NSObject)
+
+RCT_EXTERN_METHOD(
+  writeActiveRunePayload:(NSString *)payloadJson
+  resolver:(RCTPromiseResolveBlock)resolve
+  rejecter:(RCTPromiseRejectBlock)reject
+)
+
+@end
+`;
+}
+
 function updateWidgetBuildSettings(project, configurationListUuid, {
+  appVersion,
   widgetBundleIdentifier,
   widgetTargetName,
 }) {
@@ -163,7 +316,7 @@ function updateWidgetBuildSettings(project, configurationListUuid, {
     configuration.buildSettings.CURRENT_PROJECT_VERSION = 1;
     configuration.buildSettings.GENERATE_INFOPLIST_FILE = 'NO';
     configuration.buildSettings.IPHONEOS_DEPLOYMENT_TARGET = '17.0';
-    configuration.buildSettings.MARKETING_VERSION = '1.0';
+    configuration.buildSettings.MARKETING_VERSION = appVersion;
     configuration.buildSettings.PRODUCT_BUNDLE_IDENTIFIER = `"${widgetBundleIdentifier}"`;
     configuration.buildSettings.PRODUCT_NAME = `"${widgetTargetName}"`;
     configuration.buildSettings.SKIP_INSTALL = 'YES';
@@ -274,25 +427,11 @@ struct RuneWidgetView: View {
         ZStack {
             Color(hex: rune?.backgroundColor ?? "#101018")
 
-            VStack(spacing: 8) {
-                if let rune {
-                    PixelRuneGrid(rune: rune)
-                        .aspectRatio(1, contentMode: .fit)
-                        .padding(10)
-
-                    Text(rune.name)
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white.opacity(0.84))
-                        .lineLimit(1)
-                } else {
-                    Text("No Rune")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white.opacity(0.84))
-                }
+            if let rune {
+                PixelRuneGrid(rune: rune)
+                    .aspectRatio(1, contentMode: .fit)
+                    .padding(6)
             }
-            .padding(8)
         }
         .containerBackground(Color(hex: rune?.backgroundColor ?? "#101018"), for: .widget)
     }
@@ -370,6 +509,7 @@ struct ${widgetTargetName}: Widget {
         .configurationDisplayName("${widgetDisplayName}")
         .description("${widgetDescription}")
         .supportedFamilies([.systemSmall])
+        .contentMarginsDisabled()
     }
 }
 `;

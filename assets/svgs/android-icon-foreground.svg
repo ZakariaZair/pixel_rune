@@ -1,0 +1,20 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="pixelGrid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M24 0H0V24" stroke="#2B2A2F" stroke-width="1.5"/>
+    </pattern>
+    <filter id="hardShadow" x="70" y="70" width="372" height="380" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="9" stdDeviation="0" flood-color="#292820" flood-opacity="1"/>
+    </filter>
+  </defs>
+  <g filter="url(#hardShadow)">
+    <rect x="86" y="74" width="340" height="340" rx="32" fill="#FFFDF2" stroke="#292820" stroke-width="9"/>
+    <rect x="142" y="118" width="228" height="228" rx="14" fill="#111116" stroke="#292820" stroke-width="7"/>
+    <rect x="152" y="128" width="208" height="208" fill="url(#pixelGrid)" opacity="0.72"/>
+    <g shape-rendering="crispEdges">
+      <path d="M256 142H292V178H328V214H364V250H328V286H292V322H256V358H220V322H184V286H148V250H184V214H220V178H256V142Z" fill="#F0A52B"/>
+      <path d="M256 178H292V214H256V178ZM220 214H256V250H220V214ZM256 250H292V286H256V250ZM220 286H256V322H220V286ZM256 322H292V358H256V322Z" fill="#FF5C93"/>
+      <path d="M184 250H220V286H184V250ZM292 250H328V286H292V250Z" fill="#FFF2A6"/>
+    </g>
+  </g>
+</svg>

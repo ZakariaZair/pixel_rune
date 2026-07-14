@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { ENV } from './src/config/env';
 import { runStartupDiagnostics, type DiagnosticResult } from './src/diagnostics/startupDiagnostics';
@@ -34,44 +35,48 @@ export default function App() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="auto" />
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.eyebrow}>Pixel Rune</Text>
-        <Text style={styles.title}>App mobile vierge prête à tester</Text>
-        <Text style={styles.subtitle}>
-          Expo + React Native + TypeScript avec logs de santé au démarrage.
-        </Text>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>État de la stack</Text>
-          <Text style={styles.cardText}>
-            {diagnostics.length === 0
-              ? 'Diagnostics en cours... regarde aussi le Terminal.'
-              : `${readyCount}/${diagnostics.length} composantes prêtes ou joignables.`}
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="auto" />
+        <ScrollView contentContainerStyle={styles.container}>
+          <Text style={styles.eyebrow}>Pixel Rune</Text>
+          <Text style={styles.title}>App mobile vierge prête à tester</Text>
+          <Text style={styles.subtitle}>
+            Expo + React Native + TypeScript avec logs de santé au démarrage.
           </Text>
-        </View>
 
-        {diagnostics.map((item) => (
-          <View key={item.name} style={styles.row}>
-            <Text style={styles.rowStatus}>{statusLabel[item.status]}</Text>
-            <View style={styles.rowBody}>
-              <Text style={styles.rowTitle}>{item.name}</Text>
-              <Text style={styles.rowMessage}>{item.message}</Text>
-            </View>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>État de la stack</Text>
+            <Text style={styles.cardText}>
+              {diagnostics.length === 0
+                ? 'Diagnostics en cours... regarde aussi le Terminal.'
+                : `${readyCount}/${diagnostics.length} composantes prêtes ou joignables.`}
+            </Text>
           </View>
-        ))}
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Configuration</Text>
-          <Text style={styles.code}>API URL: {ENV.supabaseUrl ? 'définie' : 'manquante'}</Text>
-          <Text style={styles.code}>PostHog: {ENV.posthogApiKey ? 'défini' : 'manquant'}</Text>
-          <Text style={styles.code}>RevenueCat iOS: {ENV.revenueCatIosKey ? 'défini' : 'manquant'}</Text>
-          <Text style={styles.code}>RevenueCat Android: {ENV.revenueCatAndroidKey ? 'défini' : 'manquant'}</Text>
-          <Text style={styles.code}>Sentry DSN: {ENV.sentryDsn ? 'défini' : 'manquant'}</Text>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+          {diagnostics.map((item) => (
+            <View key={item.name} style={styles.row}>
+              <Text style={styles.rowStatus}>{statusLabel[item.status]}</Text>
+              <View style={styles.rowBody}>
+                <Text style={styles.rowTitle}>{item.name}</Text>
+                <Text style={styles.rowMessage}>{item.message}</Text>
+              </View>
+            </View>
+          ))}
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Configuration</Text>
+            <Text style={styles.code}>API URL: {ENV.supabaseUrl ? 'définie' : 'manquante'}</Text>
+            <Text style={styles.code}>PostHog: {ENV.posthogApiKey ? 'défini' : 'manquant'}</Text>
+            <Text style={styles.code}>RevenueCat iOS: {ENV.revenueCatIosKey ? 'défini' : 'manquant'}</Text>
+            <Text style={styles.code}>
+              RevenueCat Android: {ENV.revenueCatAndroidKey ? 'défini' : 'manquant'}
+            </Text>
+            <Text style={styles.code}>Sentry DSN: {ENV.sentryDsn ? 'défini' : 'manquant'}</Text>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

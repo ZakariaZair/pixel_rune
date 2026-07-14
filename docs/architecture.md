@@ -73,6 +73,11 @@ export type RunePixel = {
   color: string;
 };
 
+export type RuneAnimation = {
+  type: 'none' | 'fadeIn' | 'fadeOut';
+  durationMs: number;
+};
+
 export type Rune = {
   id: string;
   name: string;
@@ -81,6 +86,7 @@ export type Rune = {
   pixels: RunePixel[];
   backgroundColor?: string;
   createdBy?: string;
+  animation?: RuneAnimation;
 };
 ```
 
@@ -89,6 +95,9 @@ Constraints:
 - Keep grids small enough for widget rendering.
 - Prefer serializable JSON.
 - Avoid app-only objects that Swift cannot easily decode.
+- Keep animation metadata declarative and optional; the React Native app may
+  animate previews, while the WidgetKit renderer may ignore animation options
+  or render a static fallback state.
 - Keep the model stable before building sharing.
 
 ## Local app storage

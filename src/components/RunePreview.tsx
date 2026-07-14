@@ -1,17 +1,22 @@
-import { memo, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { memo, useEffect, useMemo, useRef } from 'react';
+import { Animated, StyleSheet, View } from 'react-native';
 
 import type { Rune } from '../features/runes';
 
 type RunePreviewProps = {
   rune: Rune;
+  animationEnabled?: boolean;
   size?: number;
 };
 
 const EMPTY_PIXEL_COLOR = 'transparent';
+const MIN_FADE_OPACITY = 0.18;
 
-function RunePreviewComponent({ rune, size = 192 }: RunePreviewProps) {
+function RunePreviewComponent({ rune, animationEnabled = false, size = 192 }: RunePreviewProps) {
   const pixelSize = size / Math.max(rune.width, rune.height);
+  const opacity = useRef(new Animated.Value(1)).current;
+  const animationType = rune.animation?.type ?? 'none';
+  const animationDuration = rune.animation?.durationMs ?? 900;
   const pixelColors = useMemo(() => {
     const colors = new Map<string, string>();
 
@@ -22,15 +27,51 @@ function RunePreviewComponent({ rune, size = 192 }: RunePreviewProps) {
     return colors;
   }, [rune.pixels]);
 
+  useEffect(() => {
+    if (!animationEnabled || animationType === 'none') {
+      opacity.stopAnimation();
+      opacity.setValue(1);
+      return;
+    }
+
+    const fromValue = animationType === 'fadeIn' ? MIN_FADE_OPACITY : 1;
+    const toValue = animationType === 'fadeIn' ? 1 : MIN_FADE_OPACITY;
+
+    opacity.setValue(fromValue);
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          duration: animationDuration,
+          toValue,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          duration: 0,
+          toValue: fromValue,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+      opacity.setValue(1);
+    };
+  }, [animationDuration, animationEnabled, animationType, opacity]);
+
   return (
-    <View
+    <Animated.View
       accessibilityLabel={`${rune.name} Rune preview`}
       accessibilityRole="image"
       style={[
         styles.frame,
         {
-          backgroundColor: rune.backgroundColor ?? '#101018',
+          backgroundColor: rune.backgroundColor ?? '#F3EEDC',
           height: rune.height * pixelSize,
+          opacity,
           width: rune.width * pixelSize,
         },
       ]}
@@ -52,7 +93,7 @@ function RunePreviewComponent({ rune, size = 192 }: RunePreviewProps) {
           ))}
         </View>
       ))}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -61,16 +102,16 @@ export const RunePreview = memo(RunePreviewComponent);
 const styles = StyleSheet.create({
   frame: {
     alignSelf: 'center',
-    borderColor: '#2D2B42',
-    borderRadius: 18,
-    borderWidth: 1,
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderWidth: 2,
     overflow: 'hidden',
   },
   row: {
     flexDirection: 'row',
   },
   pixel: {
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'rgba(46, 42, 31, 0.16)',
     borderWidth: StyleSheet.hairlineWidth,
   },
 });

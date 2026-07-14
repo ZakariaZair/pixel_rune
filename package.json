@@ -27,7 +27,9 @@
   "scripts": {
     "start": "expo start",
     "start:clear": "expo start --clear",
-    "android": "expo start --android",
+    "android": "ANDROID_HOME=$HOME/Library/Android/sdk PATH=$HOME/Library/Android/sdk/emulator:$HOME/Library/Android/sdk/platform-tools:$PATH expo start --android",
+    "android:start": "ANDROID_HOME=$HOME/Library/Android/sdk PATH=$HOME/Library/Android/sdk/emulator:$HOME/Library/Android/sdk/platform-tools:$PATH expo start",
+    "android:emulator": "$HOME/Library/Android/sdk/emulator/emulator @Pixel_Rune_API_35_ARM64 -no-snapshot-load -no-boot-anim",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "doctor": "npx expo-doctor",

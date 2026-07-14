@@ -1,7 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
 
-import { getDefaultRuneById } from './defaultRunes';
-
 const ACTIVE_RUNE_ID_STORAGE_KEY = 'pixelRune.activeRuneId';
 
 export async function loadPersistedActiveRuneId(): Promise<string | null> {
@@ -13,7 +11,7 @@ export async function loadPersistedActiveRuneId(): Promise<string | null> {
 
   const runeId = await SecureStore.getItemAsync(ACTIVE_RUNE_ID_STORAGE_KEY);
 
-  if (!runeId || !getDefaultRuneById(runeId)) {
+  if (!runeId) {
     return null;
   }
 
@@ -21,7 +19,7 @@ export async function loadPersistedActiveRuneId(): Promise<string | null> {
 }
 
 export async function persistActiveRuneId(runeId: string): Promise<void> {
-  if (!getDefaultRuneById(runeId)) {
+  if (!runeId.trim()) {
     return;
   }
 

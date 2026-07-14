@@ -6,6 +6,13 @@ export type RunePixel = {
   color: HexColor;
 };
 
+export type RuneAnimationType = 'none' | 'fadeIn' | 'fadeOut';
+
+export type RuneAnimation = {
+  type: RuneAnimationType;
+  durationMs: number;
+};
+
 export type Rune = {
   id: string;
   name: string;
@@ -14,6 +21,7 @@ export type Rune = {
   pixels: RunePixel[];
   backgroundColor?: HexColor;
   createdBy?: string;
+  animation?: RuneAnimation;
 };
 
 export type ActiveRunePayload = {

@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { RunePreview } from './src/components/RunePreview';
@@ -8,12 +8,21 @@ import { ENV } from './src/config/env';
 import { runStartupDiagnostics, type DiagnosticResult } from './src/diagnostics/startupDiagnostics';
 import {
   createActiveRunePayload,
+  createBlankRuneDraft,
+  createCustomRune,
+  CUSTOM_RUNE_SIZE,
   defaultRunes,
+  duplicateCustomRune,
   getDefaultRuneById,
+  loadPersistedCustomRunes,
   loadPersistedActiveRuneId,
+  persistCustomRunes,
   persistActiveRuneId,
+  updateCustomRune,
+  upsertPixel,
   type HexColor,
   type Rune,
+  type RuneAnimationType,
   type RunePixel,
 } from './src/features/runes';
 import { logAppBoot, logWarn } from './src/lib/logger';
@@ -27,8 +36,6 @@ const tabs: { id: TabId; label: string }[] = [
   { id: 'config', label: 'Config' },
 ];
 
-const CUSTOM_RUNE_SIZE = 16;
-const CUSTOM_RUNE_BACKGROUND: HexColor = '#101018';
 const colorPalette: HexColor[] = [
   '#9D8CFF',
   '#FF4D8D',
@@ -38,14 +45,30 @@ const colorPalette: HexColor[] = [
   '#FFFFFF',
 ];
 
+const animationOptions: { label: string; type: RuneAnimationType }[] = [
+  { label: 'None', type: 'none' },
+  { label: 'Fade in', type: 'fadeIn' },
+  { label: 'Fade out', type: 'fadeOut' },
+];
+
 export default function App() {
   const [diagnostics, setDiagnostics] = useState<DiagnosticResult[]>([]);
   const [activeRuneId, setActiveRuneId] = useState<string>(defaultRunes[0].id);
   const [hasLoadedActiveRune, setHasLoadedActiveRune] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('rune');
   const [customRunes, setCustomRunes] = useState<Rune[]>([]);
+  const [hasLoadedCustomRunes, setHasLoadedCustomRunes] = useState(false);
+  const [editingRuneId, setEditingRuneId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState('Untitled Rune');
+  const [draftAnimationType, setDraftAnimationType] = useState<RuneAnimationType>('none');
   const [draftPixels, setDraftPixels] = useState<RunePixel[]>([]);
   const [selectedColor, setSelectedColor] = useState<HexColor>(colorPalette[0]);
+  const [mountedTabs, setMountedTabs] = useState<Record<TabId, boolean>>({
+    rune: true,
+    customize: false,
+    status: false,
+    config: false,
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -69,11 +92,39 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
 
+    async function loadCustomRunes() {
+      try {
+        const persistedCustomRunes = await loadPersistedCustomRunes();
+
+        if (isMounted) {
+          setCustomRunes(persistedCustomRunes);
+        }
+      } catch (error) {
+        logWarn('Runes', 'Failed to load persisted custom Runes', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        if (isMounted) {
+          setHasLoadedCustomRunes(true);
+        }
+      }
+    }
+
+    void loadCustomRunes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
     async function loadActiveRune() {
       try {
         const persistedRuneId = await loadPersistedActiveRuneId();
 
-        if (isMounted && persistedRuneId && getDefaultRuneById(persistedRuneId)) {
+        if (isMounted && persistedRuneId) {
           setActiveRuneId(persistedRuneId);
         }
       } catch (error) {
@@ -99,7 +150,10 @@ export default function App() {
       return;
     }
 
-    if (!getDefaultRuneById(activeRuneId)) {
+    const activeRuneExists =
+      Boolean(getDefaultRuneById(activeRuneId)) || customRunes.some((rune) => rune.id === activeRuneId);
+
+    if (!activeRuneExists) {
       return;
     }
 
@@ -108,7 +162,32 @@ export default function App() {
         error: error instanceof Error ? error.message : String(error),
       });
     });
-  }, [activeRuneId, hasLoadedActiveRune]);
+  }, [activeRuneId, customRunes, hasLoadedActiveRune]);
+
+  useEffect(() => {
+    setMountedTabs((currentTabs) => {
+      if (currentTabs[activeTab]) {
+        return currentTabs;
+      }
+
+      return {
+        ...currentTabs,
+        [activeTab]: true,
+      };
+    });
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!hasLoadedCustomRunes) {
+      return;
+    }
+
+    void persistCustomRunes(customRunes).catch((error: unknown) => {
+      logWarn('Runes', 'Failed to persist custom Runes', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }, [customRunes, hasLoadedCustomRunes]);
 
   const readyCount = useMemo(
     () => diagnostics.filter((item) => item.status === 'ready').length,
@@ -116,35 +195,35 @@ export default function App() {
   );
   const draftRune = useMemo<Rune>(
     () => ({
-      id: 'custom-draft',
-      name: 'Draft Rune',
-      width: CUSTOM_RUNE_SIZE,
-      height: CUSTOM_RUNE_SIZE,
-      backgroundColor: CUSTOM_RUNE_BACKGROUND,
+      ...createBlankRuneDraft(draftName, draftAnimationType),
+      id: editingRuneId ?? 'custom-draft',
       pixels: draftPixels,
-      createdBy: 'local',
     }),
-    [draftPixels],
+    [draftAnimationType, draftName, draftPixels, editingRuneId],
   );
-  const activeRune =
+  const activeRune: Rune =
     customRunes.find((rune) => rune.id === activeRuneId) ??
     getDefaultRuneById(activeRuneId) ??
     defaultRunes[0];
   const activeRunePayload = useMemo(() => createActiveRunePayload(activeRune), [activeRune]);
 
   function toggleDraftPixel(x: number, y: number) {
-    setDraftPixels((currentPixels) => {
-      const existingPixel = currentPixels.find((pixel) => pixel.x === x && pixel.y === y);
+    setDraftPixels((currentPixels) => upsertPixel(currentPixels, x, y, selectedColor));
+  }
 
-      if (existingPixel?.color === selectedColor) {
-        return currentPixels.filter((pixel) => pixel.x !== x || pixel.y !== y);
-      }
+  function resetDraft() {
+    setEditingRuneId(null);
+    setDraftName('Untitled Rune');
+    setDraftAnimationType('none');
+    setDraftPixels([]);
+  }
 
-      return [
-        ...currentPixels.filter((pixel) => pixel.x !== x || pixel.y !== y),
-        { x, y, color: selectedColor },
-      ];
-    });
+  function editCustomRune(rune: Rune) {
+    setEditingRuneId(rune.id);
+    setDraftName(rune.name);
+    setDraftAnimationType(rune.animation?.type ?? 'none');
+    setDraftPixels([...rune.pixels]);
+    setActiveTab('customize');
   }
 
   function saveDraftRune() {
@@ -152,23 +231,64 @@ export default function App() {
       return;
     }
 
-    const customRune: Rune = {
-      ...draftRune,
-      id: `custom-${Date.now()}`,
-      name: `Custom ${customRunes.length + 1}`,
+    if (editingRuneId) {
+      const existingRune = customRunes.find((rune) => rune.id === editingRuneId);
+
+      if (!existingRune) {
+        resetDraft();
+        return;
+      }
+
+      const updatedRune = updateCustomRune(existingRune, {
+        animationType: draftAnimationType,
+        name: draftName,
+        pixels: draftPixels,
+      });
+
+      setCustomRunes((currentRunes) =>
+        currentRunes.map((rune) => (rune.id === editingRuneId ? updatedRune : rune)),
+      );
+      setActiveRuneId(updatedRune.id);
+      resetDraft();
+      setActiveTab('rune');
+      return;
+    }
+
+    const customRune = createCustomRune({
+      animationType: draftAnimationType,
+      name: draftName,
       pixels: draftPixels,
-    };
+    });
 
     setCustomRunes((currentRunes) => [customRune, ...currentRunes]);
     setActiveRuneId(customRune.id);
-    setDraftPixels([]);
+    resetDraft();
     setActiveTab('rune');
+  }
+
+  function duplicateRune(rune: Rune) {
+    const duplicatedRune = duplicateCustomRune(rune, customRunes.length);
+
+    setCustomRunes((currentRunes) => [duplicatedRune, ...currentRunes]);
+    setActiveRuneId(duplicatedRune.id);
+  }
+
+  function deleteCustomRune(runeId: string) {
+    setCustomRunes((currentRunes) => currentRunes.filter((rune) => rune.id !== runeId));
+
+    if (activeRuneId === runeId) {
+      setActiveRuneId(defaultRunes[0].id);
+    }
+
+    if (editingRuneId === runeId) {
+      resetDraft();
+    }
   }
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="auto" />
+        <StatusBar style="dark" />
         <View style={styles.appShell}>
           <View style={styles.header}>
             <Text style={styles.eyebrow}>Pixel Rune</Text>
@@ -193,21 +313,27 @@ export default function App() {
           </View>
 
           <View style={styles.content}>
-            {activeTab === 'rune' ? (
+            {mountedTabs.rune ? (
               <ScrollView
+                style={activeTab === 'rune' ? styles.tabPanel : styles.hiddenTabPanel}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.runePage}
               >
                 <View style={styles.heroCard}>
                   <Text style={styles.cardTitle}>Active Rune</Text>
                   <View style={styles.previewWrap}>
-                    <RunePreview rune={activeRune} size={168} />
+                    <RunePreview animationEnabled rune={activeRune} size={168} />
                   </View>
                   <Text style={styles.selectedRuneName}>{activeRune.name}</Text>
                   <Text style={styles.payloadHint}>
                     Payload v{activeRunePayload.version} · {activeRune.width}×{activeRune.height} ·{' '}
                     {activeRune.pixels.length} pixels
                   </Text>
+                  {activeRune.animation?.type && activeRune.animation.type !== 'none' ? (
+                    <Text style={styles.animationHint}>
+                      Animation: {activeRune.animation.type === 'fadeIn' ? 'fade in' : 'fade out'}
+                    </Text>
+                  ) : null}
                   <Text style={styles.persistenceHint}>
                     {hasLoadedActiveRune ? 'Saved locally on this device' : 'Loading saved Rune…'}
                   </Text>
@@ -231,7 +357,7 @@ export default function App() {
                           onPress={() => setActiveRuneId(rune.id)}
                           style={[styles.runeOption, isSelected && styles.runeOptionSelected]}
                         >
-                          <RunePreview rune={rune} size={44} />
+                          <RunePreview rune={rune} size={48} />
                           <Text style={styles.runeOptionText} numberOfLines={1}>
                             {rune.name}
                           </Text>
@@ -256,18 +382,44 @@ export default function App() {
                         const isSelected = rune.id === activeRune.id;
 
                         return (
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityState={{ selected: isSelected }}
-                            key={rune.id}
-                            onPress={() => setActiveRuneId(rune.id)}
-                            style={[styles.runeOption, isSelected && styles.runeOptionSelected]}
-                          >
-                            <RunePreview rune={rune} size={44} />
-                            <Text style={styles.runeOptionText} numberOfLines={1}>
-                              {rune.name}
-                            </Text>
-                          </Pressable>
+                          <View key={rune.id} style={styles.customRuneOption}>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityState={{ selected: isSelected }}
+                              onPress={() => setActiveRuneId(rune.id)}
+                              style={[styles.runeOption, isSelected && styles.runeOptionSelected]}
+                            >
+                              <RunePreview rune={rune} size={48} />
+                              <Text style={styles.runeOptionText} numberOfLines={1}>
+                                {rune.name}
+                              </Text>
+                            </Pressable>
+                            <View style={styles.compactActions}>
+                              <Pressable
+                                accessibilityRole="button"
+                                onPress={() => editCustomRune(rune)}
+                                style={styles.compactAction}
+                              >
+                                <Text style={styles.compactActionText}>Edit</Text>
+                              </Pressable>
+                              <Pressable
+                                accessibilityRole="button"
+                                onPress={() => duplicateRune(rune)}
+                                style={styles.compactAction}
+                              >
+                                <Text style={styles.compactActionText}>Copy</Text>
+                              </Pressable>
+                              <Pressable
+                                accessibilityRole="button"
+                                onPress={() => deleteCustomRune(rune.id)}
+                                style={[styles.compactAction, styles.dangerCompactAction]}
+                              >
+                                <Text style={[styles.compactActionText, styles.dangerActionText]}>
+                                  Delete
+                                </Text>
+                              </Pressable>
+                            </View>
+                          </View>
                         );
                       })}
                     </ScrollView>
@@ -283,15 +435,26 @@ export default function App() {
               </ScrollView>
             ) : null}
 
-            {activeTab === 'customize' ? (
+            {mountedTabs.customize ? (
               <ScrollView
+                style={activeTab === 'customize' ? styles.tabPanel : styles.hiddenTabPanel}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.customizePage}
               >
                 <View style={styles.heroCard}>
-                  <Text style={styles.cardTitle}>Draft Preview</Text>
+                  <Text style={styles.cardTitle}>
+                    {editingRuneId ? 'Edit Rune' : 'Draft Preview'}
+                  </Text>
+                  <TextInput
+                    accessibilityLabel="Rune name"
+                    onChangeText={setDraftName}
+                    placeholder="Rune name"
+                    placeholderTextColor="#8B846F"
+                    style={styles.nameInput}
+                    value={draftName}
+                  />
                   <View style={styles.previewWrap}>
-                    <RunePreview rune={draftRune} size={144} />
+                    <RunePreview animationEnabled rune={draftRune} size={144} />
                   </View>
                   <Text style={styles.payloadHint}>
                     {draftPixels.length === 0
@@ -318,7 +481,7 @@ export default function App() {
                               onPress={() => toggleDraftPixel(x, y)}
                               style={[
                                 styles.editorCell,
-                                { backgroundColor: paintedPixel?.color ?? '#0D0D16' },
+                                { backgroundColor: paintedPixel?.color ?? '#F8F0D7' },
                               ]}
                             />
                           );
@@ -352,14 +515,59 @@ export default function App() {
                   </View>
                 </View>
 
+                <View style={styles.selectorCard}>
+                  <Text style={styles.selectorTitle}>Animation</Text>
+                  <View style={styles.segmentedOptions}>
+                    {animationOptions.map((option) => {
+                      const isSelected = option.type === draftAnimationType;
+
+                      return (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: isSelected }}
+                          key={option.type}
+                          onPress={() => setDraftAnimationType(option.type)}
+                          style={[
+                            styles.segmentedOption,
+                            isSelected && styles.segmentedOptionSelected,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.segmentedOptionText,
+                              isSelected && styles.segmentedOptionTextSelected,
+                            ]}
+                          >
+                            {option.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Text style={styles.optionHelpText}>
+                    Animation is stored in the Rune payload. Widget rendering may ignore it.
+                  </Text>
+                </View>
+
                 <View style={styles.editorActions}>
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => setDraftPixels([])}
+                    onPress={resetDraft}
                     style={[styles.actionButton, styles.secondaryActionButton]}
                   >
-                    <Text style={styles.secondaryActionText}>Clear</Text>
+                    <Text style={styles.secondaryActionText}>
+                      {editingRuneId ? 'Cancel' : 'Clear'}
+                    </Text>
                   </Pressable>
+                  {editingRuneId ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => deleteCustomRune(editingRuneId)}
+                      style={[styles.actionButton, styles.dangerActionButton]}
+                    >
+                      <Text style={styles.dangerButtonText}>Delete</Text>
+                    </Pressable>
+                  ) : null}
                   <Pressable
                     accessibilityRole="button"
                     accessibilityState={{ disabled: draftPixels.length === 0 }}
@@ -371,14 +579,21 @@ export default function App() {
                       draftPixels.length === 0 && styles.disabledActionButton,
                     ]}
                   >
-                    <Text style={styles.primaryActionText}>Save Rune</Text>
+                    <Text style={styles.primaryActionText}>
+                      {editingRuneId ? 'Update Rune' : 'Save Rune'}
+                    </Text>
                   </Pressable>
                 </View>
               </ScrollView>
             ) : null}
 
-            {activeTab === 'status' ? (
-              <View style={styles.pageStack}>
+            {mountedTabs.status ? (
+              <View
+                style={[
+                  styles.pageStack,
+                  activeTab === 'status' ? styles.tabPanel : styles.hiddenTabPanel,
+                ]}
+              >
                 <View style={styles.card}>
                   <Text style={styles.cardTitle}>État de la stack</Text>
                   <Text style={styles.cardText}>
@@ -406,8 +621,13 @@ export default function App() {
               </View>
             ) : null}
 
-            {activeTab === 'config' ? (
-              <View style={styles.pageStack}>
+            {mountedTabs.config ? (
+              <View
+                style={[
+                  styles.pageStack,
+                  activeTab === 'config' ? styles.tabPanel : styles.hiddenTabPanel,
+                ]}
+              >
                 <View style={styles.card}>
                   <Text style={styles.cardTitle}>Configuration</Text>
                   <Text style={styles.cardText}>
@@ -471,10 +691,11 @@ const statusLabel: Record<DiagnosticResult['status'], string> = {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#101018',
+    backgroundColor: '#F3EEDC',
   },
   appShell: {
     flex: 1,
+    backgroundColor: '#F3EEDC',
     padding: 20,
     paddingBottom: 12,
   },
@@ -485,6 +706,12 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  tabPanel: {
+    flex: 1,
+  },
+  hiddenTabPanel: {
+    display: 'none',
   },
   runePage: {
     gap: 14,
@@ -499,46 +726,56 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   eyebrow: {
-    color: '#9D8CFF',
+    color: '#4B493F',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '900',
     letterSpacing: 1.8,
     textTransform: 'uppercase',
   },
   title: {
-    color: '#FFFFFF',
+    color: '#171713',
     fontSize: 30,
-    fontWeight: '800',
+    fontWeight: '900',
     lineHeight: 35,
   },
   subtitle: {
-    color: '#C8C5D8',
+    color: '#565244',
     fontSize: 15,
     lineHeight: 21,
   },
   card: {
-    backgroundColor: '#1B1B29',
-    borderColor: '#2D2B42',
-    borderRadius: 18,
-    borderWidth: 1,
+    backgroundColor: '#FFFDF3',
+    borderColor: '#2E2A1F',
+    borderRadius: 10,
+    borderWidth: 2,
+    elevation: 2,
     padding: 18,
+    shadowColor: '#2E2A1F',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
   heroCard: {
     alignItems: 'center',
-    backgroundColor: '#1B1B29',
-    borderColor: '#2D2B42',
-    borderRadius: 22,
-    borderWidth: 1,
+    backgroundColor: '#FFFDF3',
+    borderColor: '#2E2A1F',
+    borderRadius: 12,
+    borderWidth: 2,
+    elevation: 2,
     padding: 18,
+    shadowColor: '#2E2A1F',
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
   cardTitle: {
-    color: '#FFFFFF',
+    color: '#171713',
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '900',
     marginBottom: 8,
   },
   cardText: {
-    color: '#DAD7EA',
+    color: '#4B493F',
     fontSize: 15,
     lineHeight: 22,
   },
@@ -546,38 +783,51 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   selectedRuneName: {
-    color: '#FFFFFF',
+    color: '#171713',
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '900',
     marginTop: 12,
     textAlign: 'center',
   },
   payloadHint: {
-    color: '#9E9AAF',
+    color: '#686354',
     fontSize: 13,
     lineHeight: 18,
     marginTop: 6,
     textAlign: 'center',
   },
   persistenceHint: {
-    color: '#72E6A6',
+    color: '#25734F',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '900',
     lineHeight: 16,
     marginTop: 6,
     textAlign: 'center',
   },
+  animationHint: {
+    color: '#8A5A00',
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+    marginTop: 4,
+    textAlign: 'center',
+  },
   selectorCard: {
-    backgroundColor: '#171724',
-    borderColor: '#28263A',
-    borderRadius: 18,
-    borderWidth: 1,
+    backgroundColor: '#FDF8E7',
+    borderColor: '#2E2A1F',
+    borderRadius: 10,
+    borderWidth: 2,
+    elevation: 2,
     padding: 12,
+    shadowColor: '#2E2A1F',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
   selectorTitle: {
-    color: '#DAD7EA',
+    color: '#3D392E',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: 0.6,
     marginBottom: 10,
     textTransform: 'uppercase',
@@ -588,11 +838,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sectionCount: {
-    backgroundColor: '#26213D',
+    backgroundColor: '#F6A623',
+    borderColor: '#2E2A1F',
     borderRadius: 999,
-    color: '#C8BDFF',
+    borderWidth: 2,
+    color: '#171713',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '900',
     marginBottom: 10,
     minWidth: 24,
     overflow: 'hidden',
@@ -606,57 +858,102 @@ const styles = StyleSheet.create({
   },
   runeOption: {
     alignItems: 'center',
-    backgroundColor: '#12121D',
-    borderColor: '#2D2B42',
-    borderRadius: 16,
-    borderWidth: 1,
+    backgroundColor: '#FFFDF3',
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderWidth: 2,
+    elevation: 1,
     gap: 8,
     minWidth: 92,
     padding: 10,
+    shadowColor: '#2E2A1F',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
   runeOptionSelected: {
-    backgroundColor: '#26213D',
-    borderColor: '#9D8CFF',
+    backgroundColor: '#FFE2A6',
+    borderColor: '#171713',
   },
   runeOptionText: {
-    color: '#FFFFFF',
+    color: '#171713',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '900',
+  },
+  customRuneOption: {
+    gap: 8,
+    width: 122,
+  },
+  compactActions: {
+    gap: 6,
+  },
+  compactAction: {
+    alignItems: 'center',
+    backgroundColor: '#FFFDF3',
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderWidth: 2,
+    paddingVertical: 7,
+  },
+  dangerCompactAction: {
+    backgroundColor: '#FFE9E1',
+    borderColor: '#7E2B1F',
+  },
+  compactActionText: {
+    color: '#171713',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  dangerActionText: {
+    color: '#7E2B1F',
   },
   emptyCustomRunes: {
     alignItems: 'center',
-    backgroundColor: '#12121D',
-    borderColor: '#2D2B42',
-    borderRadius: 16,
+    backgroundColor: '#FFFDF3',
+    borderColor: '#8B846F',
+    borderRadius: 8,
     borderStyle: 'dashed',
-    borderWidth: 1,
+    borderWidth: 2,
     padding: 18,
   },
   emptyCustomTitle: {
-    color: '#FFFFFF',
+    color: '#171713',
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '900',
     marginBottom: 6,
   },
   emptyCustomText: {
-    color: '#BDB9CF',
+    color: '#565244',
     fontSize: 13,
     lineHeight: 18,
     textAlign: 'center',
   },
   editorGrid: {
     alignSelf: 'center',
-    backgroundColor: '#0D0D16',
-    borderColor: '#2D2B42',
-    borderRadius: 16,
-    borderWidth: 1,
+    backgroundColor: '#E6DCC3',
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderWidth: 2,
     overflow: 'hidden',
+  },
+  nameInput: {
+    alignSelf: 'stretch',
+    backgroundColor: '#FFFDF3',
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderWidth: 2,
+    color: '#171713',
+    fontSize: 16,
+    fontWeight: '900',
+    marginTop: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   editorRow: {
     flexDirection: 'row',
   },
   editorCell: {
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(46, 42, 31, 0.22)',
     borderWidth: StyleSheet.hairlineWidth,
     height: 18,
     width: 18,
@@ -666,15 +963,56 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 10,
   },
+  segmentedOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  segmentedOption: {
+    alignItems: 'center',
+    backgroundColor: '#FFFDF3',
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderWidth: 2,
+    elevation: 1,
+    flex: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    shadowColor: '#2E2A1F',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+  },
+  segmentedOptionSelected: {
+    backgroundColor: '#F6A623',
+  },
+  segmentedOptionText: {
+    color: '#4B493F',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  segmentedOptionTextSelected: {
+    color: '#171713',
+  },
+  optionHelpText: {
+    color: '#565244',
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 10,
+  },
   colorSwatch: {
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    borderRadius: 999,
-    borderWidth: 1,
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderWidth: 2,
+    elevation: 1,
     height: 42,
+    shadowColor: '#2E2A1F',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
     width: 42,
   },
   colorSwatchSelected: {
-    borderColor: '#FFFFFF',
+    borderColor: '#171713',
     borderWidth: 3,
   },
   editorActions: {
@@ -683,40 +1021,54 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     alignItems: 'center',
-    borderRadius: 16,
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderWidth: 2,
+    elevation: 2,
     flex: 1,
     paddingVertical: 14,
+    shadowColor: '#2E2A1F',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
   primaryActionButton: {
-    backgroundColor: '#9D8CFF',
+    backgroundColor: '#F6A623',
   },
   secondaryActionButton: {
-    backgroundColor: '#171724',
-    borderColor: '#2D2B42',
-    borderWidth: 1,
+    backgroundColor: '#FFFDF3',
+  },
+  dangerActionButton: {
+    backgroundColor: '#FFE9E1',
+    borderColor: '#7E2B1F',
   },
   disabledActionButton: {
     opacity: 0.45,
   },
   primaryActionText: {
-    color: '#101018',
+    color: '#171713',
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   secondaryActionText: {
-    color: '#DAD7EA',
+    color: '#171713',
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '900',
+  },
+  dangerButtonText: {
+    color: '#7E2B1F',
+    fontSize: 15,
+    fontWeight: '900',
   },
   statusList: {
     gap: 10,
   },
   row: {
     alignItems: 'flex-start',
-    backgroundColor: '#171724',
-    borderColor: '#28263A',
-    borderRadius: 14,
-    borderWidth: 1,
+    backgroundColor: '#FFFDF3',
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderWidth: 2,
     flexDirection: 'row',
     gap: 12,
     padding: 12,
@@ -729,12 +1081,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowTitle: {
-    color: '#FFFFFF',
+    color: '#171713',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '900',
   },
   rowMessage: {
-    color: '#BDB9CF',
+    color: '#565244',
     fontSize: 13,
     lineHeight: 18,
     marginTop: 4,
@@ -744,53 +1096,60 @@ const styles = StyleSheet.create({
   },
   configPill: {
     alignItems: 'center',
-    backgroundColor: '#171724',
-    borderColor: '#28263A',
-    borderRadius: 16,
-    borderWidth: 1,
+    backgroundColor: '#FFFDF3',
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderWidth: 2,
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: 16,
   },
   configPillLabel: {
-    color: '#FFFFFF',
+    color: '#171713',
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '900',
   },
   configPillValue: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   readyText: {
-    color: '#72E6A6',
+    color: '#25734F',
   },
   missingText: {
-    color: '#FFB86B',
+    color: '#B86B00',
   },
   tabBar: {
-    backgroundColor: '#171724',
-    borderColor: '#2D2B42',
-    borderRadius: 22,
-    borderWidth: 1,
+    backgroundColor: '#FFFDF3',
+    borderColor: '#2E2A1F',
+    borderRadius: 10,
+    borderWidth: 2,
+    elevation: 3,
     flexDirection: 'row',
     gap: 8,
     padding: 6,
+    shadowColor: '#2E2A1F',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
   },
   tabButton: {
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: 8,
     flex: 1,
     paddingVertical: 12,
   },
   tabButtonSelected: {
-    backgroundColor: '#9D8CFF',
+    backgroundColor: '#F6A623',
+    borderColor: '#2E2A1F',
+    borderWidth: 2,
   },
   tabButtonText: {
-    color: '#BDB9CF',
+    color: '#4B493F',
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   tabButtonTextSelected: {
-    color: '#101018',
+    color: '#171713',
   },
 });

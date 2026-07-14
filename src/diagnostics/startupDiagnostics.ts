@@ -137,10 +137,23 @@ function checkPostHog(): DiagnosticResult {
     };
   }
 
+  if (Platform.OS === 'web') {
+    const message =
+      'PostHog React Native est configuré, mais ce diagnostic est ignoré sur web. Utilise Android/iOS ou ajoute posthog-js pour le web.';
+    logWarn('PostHog', message);
+    return {
+      name: 'PostHog',
+      status: 'skipped',
+      message,
+    };
+  }
+
   try {
     const { PostHog } = require('posthog-react-native');
     const client = new PostHog(ENV.posthogApiKey, {
       host: ENV.posthogHost,
+      persistence: 'memory',
+      captureAppLifecycleEvents: false,
     });
     client.capture('mobile_app_boot_diagnostics');
 

@@ -1,9 +1,9 @@
 {
-  "name": "pixel_rune_scaffold",
+  "name": "pixel_rune",
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
-    "@sentry/react-native": "^8.18.0",
+    "@sentry/react-native": "~7.11.0",
     "@supabase/supabase-js": "^2.110.3",
     "expo": "~57.0.4",
     "expo-constants": "^57.0.3",
@@ -13,20 +13,28 @@
     "expo-status-bar": "~57.0.0",
     "posthog-react-native": "^4.56.0",
     "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-native": "0.86.0",
     "react-native-purchases": "^10.4.2",
-    "react-native-url-polyfill": "^3.0.0"
+    "react-native-url-polyfill": "^3.0.0",
+    "react-native-web": "^0.21.2"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "eas-cli": "^21.0.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
+    "start:clear": "expo start --clear",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "doctor": "npx expo-doctor",
+    "typecheck": "tsc --noEmit",
+    "eas:build:android": "npx eas-cli build --platform android",
+    "eas:build:ios": "npx eas-cli build --platform ios",
+    "eas:submit:android": "npx eas-cli submit --platform android",
+    "eas:submit:ios": "npx eas-cli submit --platform ios"
   },
   "private": true
 }

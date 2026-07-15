@@ -1,69 +1,64 @@
-# Pixel Rune
+<p align="center">
+  <img src="assets/splash-icon.png" alt="Pixel Rune app icon" width="128" />
+</p>
 
-App mobile Expo + React Native + TypeScript prête pour iOS et Android.
+<h1 align="center">Pixel Rune</h1>
 
-## Agent workflow
+<p align="center">
+  Create, choose, and keep small pixel-art charms close at hand.
+</p>
 
-Ce repo est configuré pour travailler avec des discussions Zed/Codex spécialisées.
+---
 
-- Instructions principales: `AGENTS.md`
-- Exigences produit: `docs/requirements.md`
-- Architecture technique: `docs/architecture.md`
-- Plan communication/network: `docs/network.md`
-- Décisions durables: `docs/decisions.md`
-- Tâche active: `tasks/current.md`
-- Backlog: `tasks/backlog.md`
-- Prompts initiaux par agent: `AGENT_DISCUSSION_INSTRUCTIONS.txt`
+The app lets users pick a built-in Rune or paint their own, then save the active Rune locally so it can drive the in-app preview and the iOS widget payload.
 
-Avant de lancer une nouvelle discussion agent, choisis un rôle dans `AGENT_DISCUSSION_INSTRUCTIONS.txt`, colle le prompt correspondant, puis donne une tâche précise.
+## Product preview
 
-## Lancer en local
+| Choose a Rune | Create a Rune |
+| --- | --- |
+| ![Pixel Rune selection screen](assets/screenshots/pixel-rune-rune-screen.png) | ![Pixel Rune creation screen](assets/screenshots/pixel-rune-create-screen.png) |
 
-```bash
-npm run start
-```
+## What the app does
 
-Puis ouvre l’app avec Expo Go ou lance un simulateur via:
+- Browse a default collection of pixel-art Runes.
+- Select one active Rune and keep it saved locally on the device.
+- Preview the selected Rune in the app.
+- Paint a custom 16×16 Rune with a simple grid editor.
+- Store Rune data in a serializable payload designed to be shared with a native iOS WidgetKit widget.
+- Keep basic app readiness diagnostics available without interrupting the main Rune flow.
 
-```bash
-npm run ios
-npm run android
-```
+## iOS widget direction
 
-Pour repartir avec un cache propre:
+Pixel Rune is designed around a conservative WidgetKit model:
 
-```bash
-npm run start:clear
-```
+- live interaction and motion belong inside the app;
+- the home screen widget displays the selected Rune from shared local state;
+- widget refresh timing follows iOS WidgetKit limits.
 
-## Configuration
+This keeps the product aligned with App Store expectations and avoids promising real-time widget behavior that iOS does not guarantee.
 
-Copie `.env.example` vers `.env` et remplis les clés nécessaires:
+## Current status
 
-- Supabase: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`
-- Sentry: `EXPO_PUBLIC_SENTRY_DSN`
-- PostHog: `EXPO_PUBLIC_POSTHOG_API_KEY`
-- RevenueCat: `EXPO_PUBLIC_REVENUECAT_IOS_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`
+The current build demonstrates the core Rune loop:
 
-Sans ces clés, l’app démarre quand même et affiche les services manquants dans l’écran et le Terminal.
+1. choose a built-in Rune;
+2. preview it in the app;
+3. save the selected Rune locally;
+4. prepare the selected Rune payload for native widget sync;
+5. create custom Runes from a 16×16 editor.
 
-## Builds stores
+Native WidgetKit support requires an iOS development/prebuild build or EAS build. Expo Go can display the app screens, but it cannot include the custom native widget bridge.
 
-```bash
-npm run eas:build:android
-npm run eas:build:ios
-```
+## Store positioning
 
-Soumettre aux stores après un build:
+Pixel Rune should be presented as a polished personalization app:
 
-```bash
-npm run eas:submit:android
-npm run eas:submit:ios
-```
+> Create and collect tiny pixel-art Runes, choose the one that matches your mood, and keep it visible through an iPhone home screen widget.
 
-Les identifiants par défaut sont:
+The first App Store submission should focus on the local Rune and widget experience before adding accounts, sharing, premium packs, or subscriptions.
 
-- iOS: `com.pixelrune.app`
-- Android: `com.pixelrune.app`
+## Platform
 
-Change-les avant publication si tu veux un autre bundle/package id.
+- iOS and Android mobile app built with Expo and React Native.
+- Native iOS WidgetKit extension planned for the iPhone widget experience.
+- Backend, analytics, purchases, and crash reporting integrations are prepared for later product slices.

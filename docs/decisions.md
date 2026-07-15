@@ -51,3 +51,20 @@ Reasoning:
 - A small widget matches the "small visual ritual" product promise.
 - It forces the Rune grid and fallback UI to stay simple.
 - Medium/large widget layouts can be added once the payload and rendering path are validated.
+
+## 2026-07-15 - First sharing mode
+
+Decision: use no-database Rune sharing first through encoded share payloads sent
+with the operating system share sheet.
+
+Reasoning:
+
+- The native share sheet lets users choose Messages, AirDrop, WhatsApp, email,
+  or another installed app without Pixel Rune collecting contact data.
+- Contacts permission does not deliver data by itself; it only exposes address
+  book identifiers and adds avoidable privacy review burden.
+- A share payload can be imported locally as a custom Rune and activated by the
+  recipient without accounts, Supabase, or RLS.
+- Widget refresh expectations remain conservative: received Runes should be
+  accepted/imported in the app, then activated locally before the app requests a
+  WidgetKit timeline reload.

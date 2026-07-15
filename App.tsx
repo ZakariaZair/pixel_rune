@@ -4,8 +4,6 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { RunePreview } from './src/components/RunePreview';
-import { ENV } from './src/config/env';
-import { runStartupDiagnostics, type DiagnosticResult } from './src/diagnostics/startupDiagnostics';
 import {
   createActiveRunePayload,
   createBlankRuneDraft,
@@ -28,13 +26,12 @@ import {
 } from './src/features/runes';
 import { logAppBoot, logWarn } from './src/lib/logger';
 
-type TabId = 'rune' | 'customize' | 'status' | 'config';
+type TabId = 'rune' | 'customize' | 'community';
 
 const tabs: { id: TabId; label: string }[] = [
   { id: 'rune', label: 'Rune' },
   { id: 'customize', label: 'Create' },
-  { id: 'status', label: 'Status' },
-  { id: 'config', label: 'Config' },
+  { id: 'community', label: 'Community' },
 ];
 
 const colorPalette: HexColor[] = [
@@ -46,14 +43,31 @@ const colorPalette: HexColor[] = [
   '#FFFFFF',
 ];
 
+const colorPickerRows: HexColor[][] = [
+  ['#FF4D8D', '#FF5E5B', '#FF9F1C', '#FFE66D', '#72E6A6', '#61F2FF'],
+  ['#9D8CFF', '#4D96FF', '#6FFFE9', '#70E000', '#F8E8A0', '#FFFFFF'],
+  ['#C9184A', '#8D5A3B', '#B86B00', '#25734F', '#0D1324', '#171713'],
+  ['#FFC2D1', '#FFD6A5', '#FDFFB6', '#CAFFBF', '#A0C4FF', '#BDB2FF'],
+];
+
 const animationOptions: { label: string; type: RuneAnimationType }[] = [
   { label: 'None', type: 'none' },
   { label: 'Fade in', type: 'fadeIn' },
   { label: 'Fade out', type: 'fadeOut' },
 ];
 
+function normalizeHexColor(input: string): HexColor | null {
+  const trimmedInput = input.trim();
+  const color = trimmedInput.startsWith('#') ? trimmedInput : `#${trimmedInput}`;
+
+  if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+    return null;
+  }
+
+  return color.toUpperCase() as HexColor;
+}
+
 export default function App() {
-  const [diagnostics, setDiagnostics] = useState<DiagnosticResult[]>([]);
   const [activeRuneId, setActiveRuneId] = useState<string>(defaultRunes[0].id);
   const [hasLoadedActiveRune, setHasLoadedActiveRune] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('rune');
@@ -64,31 +78,16 @@ export default function App() {
   const [draftAnimationType, setDraftAnimationType] = useState<RuneAnimationType>('none');
   const [draftPixels, setDraftPixels] = useState<RunePixel[]>([]);
   const [selectedColor, setSelectedColor] = useState<HexColor>(colorPalette[0]);
+  const [customColorInput, setCustomColorInput] = useState<string>(colorPalette[0]);
   const [widgetSyncMessage, setWidgetSyncMessage] = useState('Widget sync pending native bridge.');
   const [mountedTabs, setMountedTabs] = useState<Record<TabId, boolean>>({
     rune: true,
     customize: false,
-    status: false,
-    config: false,
+    community: false,
   });
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function boot() {
-      logAppBoot();
-      const results = await runStartupDiagnostics();
-
-      if (isMounted) {
-        setDiagnostics(results);
-      }
-    }
-
-    void boot();
-
-    return () => {
-      isMounted = false;
-    };
+    logAppBoot();
   }, []);
 
   useEffect(() => {
@@ -191,10 +190,6 @@ export default function App() {
     });
   }, [customRunes, hasLoadedCustomRunes]);
 
-  const readyCount = useMemo(
-    () => diagnostics.filter((item) => item.status === 'ready').length,
-    [diagnostics],
-  );
   const draftRune = useMemo<Rune>(
     () => ({
       ...createBlankRuneDraft(draftName, draftAnimationType),
@@ -208,6 +203,10 @@ export default function App() {
     getDefaultRuneById(activeRuneId) ??
     defaultRunes[0];
   const activeRunePayload = useMemo(() => createActiveRunePayload(activeRune), [activeRune]);
+  const normalizedCustomColor = useMemo(
+    () => normalizeHexColor(customColorInput),
+    [customColorInput],
+  );
 
   useEffect(() => {
     if (!hasLoadedActiveRune || !hasLoadedCustomRunes) {
@@ -248,6 +247,19 @@ export default function App() {
 
   function toggleDraftPixel(x: number, y: number) {
     setDraftPixels((currentPixels) => upsertPixel(currentPixels, x, y, selectedColor));
+  }
+
+  function selectColor(color: HexColor) {
+    setSelectedColor(color);
+    setCustomColorInput(color);
+  }
+
+  function applyCustomColor() {
+    if (!normalizedCustomColor) {
+      return;
+    }
+
+    selectColor(normalizedCustomColor);
   }
 
   function resetDraft() {
@@ -330,24 +342,19 @@ export default function App() {
         <StatusBar style="dark" />
         <View style={styles.appShell}>
           <View style={styles.header}>
-            <Text style={styles.eyebrow}>Pixel Rune</Text>
             <Text style={styles.title}>
               {activeTab === 'rune'
-                ? 'Choose your Rune'
+                ? 'Your Rune'
                 : activeTab === 'customize'
-                  ? 'Create a Rune'
-                : activeTab === 'status'
-                  ? 'Stack status'
-                  : 'App config'}
+                  ? 'Create'
+                  : 'Community'}
             </Text>
             <Text style={styles.subtitle}>
               {activeTab === 'rune'
-                ? 'Pick the pixel charm that will drive the app and widget payload.'
+                ? 'Pick the Rune you want to keep active.'
                 : activeTab === 'customize'
-                  ? 'Paint a 16×16 Rune using the same serializable Rune engine.'
-                : activeTab === 'status'
-                  ? 'Startup diagnostics stay available without crowding the Rune screen.'
-                  : 'Environment readiness for integrations used later in the product.'}
+                  ? 'Draw a 16×16 pixel charm and save it to your library.'
+                  : 'Discover custom Runes shared by other creators.'}
             </Text>
           </View>
 
@@ -359,28 +366,29 @@ export default function App() {
                 contentContainerStyle={styles.runePage}
               >
                 <View style={styles.heroCard}>
-                  <Text style={styles.cardTitle}>Active Rune</Text>
+                  <Text style={styles.kicker}>Active now</Text>
                   <View style={styles.previewWrap}>
                     <RunePreview animationEnabled rune={activeRune} size={168} />
                   </View>
                   <Text style={styles.selectedRuneName}>{activeRune.name}</Text>
-                  <Text style={styles.payloadHint}>
-                    Payload v{activeRunePayload.version} · {activeRune.width}×{activeRune.height} ·{' '}
-                    {activeRune.pixels.length} pixels
-                  </Text>
                   {activeRune.animation?.type && activeRune.animation.type !== 'none' ? (
                     <Text style={styles.animationHint}>
-                      Animation: {activeRune.animation.type === 'fadeIn' ? 'fade in' : 'fade out'}
+                      {activeRune.animation.type === 'fadeIn' ? 'Fade in' : 'Fade out'} preview
                     </Text>
                   ) : null}
                   <Text style={styles.persistenceHint}>
-                    {hasLoadedActiveRune ? 'Saved locally on this device' : 'Loading saved Rune…'}
+                    {hasLoadedActiveRune ? 'Saved on this device' : 'Loading saved Rune…'}
                   </Text>
-                  <Text style={styles.widgetHint}>{widgetSyncMessage}</Text>
                 </View>
 
                 <View style={styles.selectorCard}>
-                  <Text style={styles.selectorTitle}>Default Runes</Text>
+                  <View style={styles.sectionHeader}>
+                    <View>
+                      <Text style={styles.selectorTitle}>Starter Runes</Text>
+                      <Text style={styles.sectionSubtitle}>Ready-made charms to use instantly.</Text>
+                    </View>
+                    <Text style={styles.sectionCount}>{defaultRunes.length}</Text>
+                  </View>
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -409,7 +417,10 @@ export default function App() {
 
                 <View style={styles.selectorCard}>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.selectorTitle}>Customized Runes</Text>
+                    <View>
+                      <Text style={styles.selectorTitle}>My Runes</Text>
+                      <Text style={styles.sectionSubtitle}>Your saved custom designs.</Text>
+                    </View>
                     <Text style={styles.sectionCount}>{customRunes.length}</Text>
                   </View>
                   {customRunes.length > 0 ? (
@@ -465,12 +476,24 @@ export default function App() {
                     </ScrollView>
                   ) : (
                     <View style={styles.emptyCustomRunes}>
-                      <Text style={styles.emptyCustomTitle}>No custom Runes yet</Text>
+                      <Text style={styles.emptyCustomTitle}>Nothing here yet</Text>
                       <Text style={styles.emptyCustomText}>
-                        Use the Create tab to paint your first personalized Rune.
+                        Create a Rune and it will appear in this library.
                       </Text>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => setActiveTab('customize')}
+                        style={[styles.inlineButton, styles.primaryActionButton]}
+                      >
+                        <Text style={styles.primaryActionText}>Create one</Text>
+                      </Pressable>
                     </View>
                   )}
+                </View>
+
+                <View style={styles.noteCard}>
+                  <Text style={styles.noteTitle}>Widget status</Text>
+                  <Text style={styles.noteText}>{widgetSyncMessage}</Text>
                 </View>
               </ScrollView>
             ) : null}
@@ -482,29 +505,23 @@ export default function App() {
                 contentContainerStyle={styles.customizePage}
               >
                 <View style={styles.heroCard}>
-                  <Text style={styles.cardTitle}>
-                    {editingRuneId ? 'Edit Rune' : 'Draft Preview'}
-                  </Text>
-                  <TextInput
-                    accessibilityLabel="Rune name"
-                    onChangeText={setDraftName}
-                    placeholder="Rune name"
-                    placeholderTextColor="#8B846F"
-                    style={styles.nameInput}
-                    value={draftName}
-                  />
                   <View style={styles.previewWrap}>
                     <RunePreview animationEnabled rune={draftRune} size={144} />
                   </View>
                   <Text style={styles.payloadHint}>
                     {draftPixels.length === 0
-                      ? 'Tap cells below to start painting.'
+                      ? 'Start with a few pixels. You can edit it later.'
                       : `${draftPixels.length} painted pixels`}
                   </Text>
                 </View>
 
                 <View style={styles.selectorCard}>
-                  <Text style={styles.selectorTitle}>Paint grid</Text>
+                  <View style={styles.sectionHeader}>
+                    <View>
+                      <Text style={styles.selectorTitle}>Canvas</Text>
+                      <Text style={styles.sectionSubtitle}>Tap a cell to paint or erase.</Text>
+                    </View>
+                  </View>
                   <View style={styles.editorGrid}>
                     {Array.from({ length: CUSTOM_RUNE_SIZE }).map((_, y) => (
                       <View key={`editor-row-${y}`} style={styles.editorRow}>
@@ -531,62 +548,128 @@ export default function App() {
                   </View>
                 </View>
 
-                <View style={styles.selectorCard}>
-                  <Text style={styles.selectorTitle}>Color</Text>
-                  <View style={styles.palette}>
-                    {colorPalette.map((color) => {
-                      const isSelected = color === selectedColor;
+                <View style={styles.toolsCard}>
+                  <View style={styles.toolBlock}>
+                    <Text style={styles.selectorTitle}>Color</Text>
+                    <View style={styles.palette}>
+                      {colorPalette.map((color) => {
+                        const isSelected = color === selectedColor;
 
-                      return (
-                        <Pressable
-                          accessibilityLabel={`Select ${color}`}
-                          accessibilityRole="button"
+                        return (
+                          <Pressable
+                            accessibilityLabel={`Select ${color}`}
+                            accessibilityRole="button"
                           accessibilityState={{ selected: isSelected }}
                           key={color}
-                          onPress={() => setSelectedColor(color)}
+                          onPress={() => selectColor(color)}
                           style={[
                             styles.colorSwatch,
                             { backgroundColor: color },
                             isSelected && styles.colorSwatchSelected,
                           ]}
-                        />
-                      );
-                    })}
+                          />
+                        );
+                      })}
+                    </View>
+                    <View style={styles.colorPicker}>
+                      {colorPickerRows.map((row, rowIndex) => (
+                        <View key={`color-row-${rowIndex}`} style={styles.colorPickerRow}>
+                          {row.map((color) => {
+                            const isSelected = color === selectedColor;
+
+                            return (
+                              <Pressable
+                                accessibilityLabel={`Select ${color}`}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: isSelected }}
+                                key={color}
+                                onPress={() => selectColor(color)}
+                                style={[
+                                  styles.colorPickerCell,
+                                  { backgroundColor: color },
+                                  isSelected && styles.colorPickerCellSelected,
+                                ]}
+                              />
+                            );
+                          })}
+                        </View>
+                      ))}
+                    </View>
+                    <Text style={styles.exactColorLabel}>Exact color</Text>
+                    <View style={styles.customColorRow}>
+                      <View
+                        style={[
+                          styles.customColorPreview,
+                          { backgroundColor: normalizedCustomColor ?? selectedColor },
+                        ]}
+                      />
+                      <TextInput
+                        accessibilityLabel="Custom hex color"
+                        autoCapitalize="characters"
+                        autoCorrect={false}
+                        maxLength={7}
+                        onChangeText={setCustomColorInput}
+                        placeholder="#AABBCC"
+                        placeholderTextColor="#8B846F"
+                        style={styles.customColorInput}
+                        value={customColorInput}
+                      />
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: !normalizedCustomColor }}
+                        disabled={!normalizedCustomColor}
+                        onPress={applyCustomColor}
+                        style={[
+                          styles.customColorButton,
+                          !normalizedCustomColor && styles.disabledActionButton,
+                        ]}
+                      >
+                        <Text style={styles.customColorButtonText}>Use</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  <View style={styles.toolBlock}>
+                    <Text style={styles.selectorTitle}>Motion</Text>
+                    <View style={styles.segmentedOptions}>
+                      {animationOptions.map((option) => {
+                        const isSelected = option.type === draftAnimationType;
+
+                        return (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: isSelected }}
+                            key={option.type}
+                            onPress={() => setDraftAnimationType(option.type)}
+                            style={[
+                              styles.segmentedOption,
+                              isSelected && styles.segmentedOptionSelected,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.segmentedOptionText,
+                                isSelected && styles.segmentedOptionTextSelected,
+                              ]}
+                            >
+                              {option.label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
                   </View>
                 </View>
 
                 <View style={styles.selectorCard}>
-                  <Text style={styles.selectorTitle}>Animation</Text>
-                  <View style={styles.segmentedOptions}>
-                    {animationOptions.map((option) => {
-                      const isSelected = option.type === draftAnimationType;
-
-                      return (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: isSelected }}
-                          key={option.type}
-                          onPress={() => setDraftAnimationType(option.type)}
-                          style={[
-                            styles.segmentedOption,
-                            isSelected && styles.segmentedOptionSelected,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.segmentedOptionText,
-                              isSelected && styles.segmentedOptionTextSelected,
-                            ]}
-                          >
-                            {option.label}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                  <Text style={styles.optionHelpText}>
-                    Animation is stored in the Rune payload. Widget rendering may ignore it.
-                  </Text>
+                  <TextInput
+                    accessibilityLabel="Rune name"
+                    onChangeText={setDraftName}
+                    placeholder="Rune name"
+                    placeholderTextColor="#8B846F"
+                    style={styles.nameInput}
+                    value={draftName}
+                  />
                 </View>
 
                 <View style={styles.editorActions}>
@@ -627,62 +710,49 @@ export default function App() {
               </ScrollView>
             ) : null}
 
-            {mountedTabs.status ? (
-              <View
-                style={[
-                  styles.pageStack,
-                  activeTab === 'status' ? styles.tabPanel : styles.hiddenTabPanel,
-                ]}
+            {mountedTabs.community ? (
+              <ScrollView
+                style={activeTab === 'community' ? styles.tabPanel : styles.hiddenTabPanel}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.communityPage}
               >
-                <View style={styles.card}>
-                  <Text style={styles.cardTitle}>État de la stack</Text>
-                  <Text style={styles.cardText}>
-                    {diagnostics.length === 0
-                      ? 'Diagnostics en cours... regarde aussi le Terminal.'
-                      : `${readyCount}/${diagnostics.length} composantes prêtes ou joignables.`}
+                <View style={styles.heroCard}>
+                  <Text style={styles.kicker}>Coming soon</Text>
+                  <Text style={styles.communityTitle}>Browse shared Runes</Text>
+                  <Text style={styles.communityText}>
+                    This is where people will publish custom Runes for others to discover, save,
+                    and use as their active Rune.
                   </Text>
                 </View>
 
-                <View style={styles.statusList}>
-                  {diagnostics.map((item) => (
-                    <View key={item.name} style={styles.row}>
-                      <Text style={styles.rowStatus}>{statusLabel[item.status]}</Text>
-                      <View style={styles.rowBody}>
-                        <Text style={styles.rowTitle} numberOfLines={1}>
-                          {item.name}
-                        </Text>
-                        <Text style={styles.rowMessage} numberOfLines={2}>
-                          {item.message}
-                        </Text>
-                      </View>
+                <View style={styles.selectorCard}>
+                  <View style={styles.sectionHeader}>
+                    <View>
+                      <Text style={styles.selectorTitle}>Featured placeholders</Text>
+                      <Text style={styles.sectionSubtitle}>
+                        Example community slots before publishing is connected.
+                      </Text>
                     </View>
-                  ))}
-                </View>
-              </View>
-            ) : null}
+                  </View>
 
-            {mountedTabs.config ? (
-              <View
-                style={[
-                  styles.pageStack,
-                  activeTab === 'config' ? styles.tabPanel : styles.hiddenTabPanel,
-                ]}
-              >
-                <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Configuration</Text>
-                  <Text style={styles.cardText}>
-                    Integration keys are checked locally. Real secrets are not shown.
+                  <View style={styles.communityGrid}>
+                    {['Daily picks', 'Friends', 'Popular'].map((label) => (
+                      <View key={label} style={styles.communityPlaceholder}>
+                        <Text style={styles.placeholderIcon}>✦</Text>
+                        <Text style={styles.placeholderTitle}>{label}</Text>
+                        <Text style={styles.placeholderText}>Published Runes will appear here.</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.noteCard}>
+                  <Text style={styles.noteTitle}>Publishing later</Text>
+                  <Text style={styles.noteText}>
+                    Community upload, profiles, moderation, and sharing are placeholders for now.
                   </Text>
                 </View>
-
-                <View style={styles.configGrid}>
-                  <ConfigPill label="API URL" isReady={Boolean(ENV.supabaseUrl)} />
-                  <ConfigPill label="PostHog" isReady={Boolean(ENV.posthogApiKey)} />
-                  <ConfigPill label="RevenueCat iOS" isReady={Boolean(ENV.revenueCatIosKey)} />
-                  <ConfigPill label="RevenueCat Android" isReady={Boolean(ENV.revenueCatAndroidKey)} />
-                  <ConfigPill label="Sentry DSN" isReady={Boolean(ENV.sentryDsn)} />
-                </View>
-              </View>
+              </ScrollView>
             ) : null}
           </View>
 
@@ -711,23 +781,6 @@ export default function App() {
   );
 }
 
-function ConfigPill({ label, isReady }: { label: string; isReady: boolean }) {
-  return (
-    <View style={styles.configPill}>
-      <Text style={styles.configPillLabel}>{label}</Text>
-      <Text style={[styles.configPillValue, isReady ? styles.readyText : styles.missingText]}>
-        {isReady ? 'Ready' : 'Missing'}
-      </Text>
-    </View>
-  );
-}
-
-const statusLabel: Record<DiagnosticResult['status'], string> = {
-  ready: '✅',
-  skipped: '⚠️',
-  error: '❌',
-};
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -742,7 +795,7 @@ const styles = StyleSheet.create({
   header: {
     gap: 8,
     paddingBottom: 16,
-    paddingTop: 18,
+    paddingTop: 12,
   },
   content: {
     flex: 1,
@@ -761,16 +814,9 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingBottom: 10,
   },
-  pageStack: {
-    flex: 1,
-    gap: 16,
-  },
-  eyebrow: {
-    color: '#4B493F',
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 1.8,
-    textTransform: 'uppercase',
+  communityPage: {
+    gap: 14,
+    paddingBottom: 10,
   },
   title: {
     color: '#171713',
@@ -814,10 +860,32 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginBottom: 8,
   },
+  kicker: {
+    color: '#3D392E',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
   cardText: {
     color: '#4B493F',
     fontSize: 15,
     lineHeight: 22,
+  },
+  communityTitle: {
+    color: '#171713',
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 29,
+    textAlign: 'center',
+  },
+  communityText: {
+    color: '#565244',
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 8,
+    textAlign: 'center',
   },
   previewWrap: {
     marginTop: 8,
@@ -844,13 +912,26 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textAlign: 'center',
   },
-  widgetHint: {
+  noteCard: {
+    backgroundColor: '#F8F0D7',
+    borderColor: '#C9B98F',
+    borderRadius: 10,
+    borderWidth: 2,
+    padding: 12,
+  },
+  noteTitle: {
+    color: '#3D392E',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  noteText: {
     color: '#625B48',
     fontSize: 12,
     fontWeight: '800',
     lineHeight: 17,
-    marginTop: 4,
-    textAlign: 'center',
   },
   animationHint: {
     color: '#8A5A00',
@@ -884,6 +965,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  sectionSubtitle: {
+    color: '#625B48',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    marginBottom: 10,
   },
   sectionCount: {
     backgroundColor: '#F6A623',
@@ -976,6 +1064,15 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: 'center',
   },
+  inlineButton: {
+    alignItems: 'center',
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderWidth: 2,
+    marginTop: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
   editorGrid: {
     alignSelf: 'center',
     backgroundColor: '#E6DCC3',
@@ -1011,6 +1108,53 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 10,
   },
+  toolsCard: {
+    backgroundColor: '#FDF8E7',
+    borderColor: '#2E2A1F',
+    borderRadius: 10,
+    borderWidth: 2,
+    elevation: 2,
+    gap: 16,
+    padding: 12,
+    shadowColor: '#2E2A1F',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+  },
+  toolBlock: {
+    gap: 10,
+  },
+  communityGrid: {
+    gap: 10,
+  },
+  communityPlaceholder: {
+    alignItems: 'center',
+    backgroundColor: '#FFFDF3',
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderStyle: 'dashed',
+    borderWidth: 2,
+    padding: 16,
+  },
+  placeholderIcon: {
+    color: '#F6A623',
+    fontSize: 24,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  placeholderTitle: {
+    color: '#171713',
+    fontSize: 15,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  placeholderText: {
+    color: '#625B48',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+    textAlign: 'center',
+  },
   segmentedOptions: {
     flexDirection: 'row',
     gap: 8,
@@ -1041,12 +1185,6 @@ const styles = StyleSheet.create({
   segmentedOptionTextSelected: {
     color: '#171713',
   },
-  optionHelpText: {
-    color: '#565244',
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 10,
-  },
   colorSwatch: {
     borderColor: '#2E2A1F',
     borderRadius: 8,
@@ -1062,6 +1200,74 @@ const styles = StyleSheet.create({
   colorSwatchSelected: {
     borderColor: '#171713',
     borderWidth: 3,
+  },
+  colorPicker: {
+    backgroundColor: '#FFFDF3',
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderWidth: 2,
+    gap: 6,
+    padding: 8,
+  },
+  colorPickerRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  colorPickerCell: {
+    borderColor: 'rgba(46, 42, 31, 0.45)',
+    borderRadius: 6,
+    borderWidth: 1,
+    flex: 1,
+    height: 30,
+  },
+  colorPickerCellSelected: {
+    borderColor: '#171713',
+    borderWidth: 3,
+  },
+  exactColorLabel: {
+    color: '#625B48',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  customColorRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  customColorPreview: {
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderWidth: 2,
+    height: 42,
+    width: 42,
+  },
+  customColorInput: {
+    backgroundColor: '#FFFDF3',
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderWidth: 2,
+    color: '#171713',
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '900',
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  customColorButton: {
+    alignItems: 'center',
+    backgroundColor: '#F6A623',
+    borderColor: '#2E2A1F',
+    borderRadius: 8,
+    borderWidth: 2,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  customColorButtonText: {
+    color: '#171713',
+    fontSize: 13,
+    fontWeight: '900',
   },
   editorActions: {
     flexDirection: 'row',
@@ -1107,65 +1313,6 @@ const styles = StyleSheet.create({
     color: '#7E2B1F',
     fontSize: 15,
     fontWeight: '900',
-  },
-  statusList: {
-    gap: 10,
-  },
-  row: {
-    alignItems: 'flex-start',
-    backgroundColor: '#FFFDF3',
-    borderColor: '#2E2A1F',
-    borderRadius: 8,
-    borderWidth: 2,
-    flexDirection: 'row',
-    gap: 12,
-    padding: 12,
-  },
-  rowStatus: {
-    fontSize: 20,
-    lineHeight: 26,
-  },
-  rowBody: {
-    flex: 1,
-  },
-  rowTitle: {
-    color: '#171713',
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  rowMessage: {
-    color: '#565244',
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 4,
-  },
-  configGrid: {
-    gap: 12,
-  },
-  configPill: {
-    alignItems: 'center',
-    backgroundColor: '#FFFDF3',
-    borderColor: '#2E2A1F',
-    borderRadius: 8,
-    borderWidth: 2,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  configPillLabel: {
-    color: '#171713',
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  configPillValue: {
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  readyText: {
-    color: '#25734F',
-  },
-  missingText: {
-    color: '#B86B00',
   },
   tabBar: {
     backgroundColor: '#FFFDF3',

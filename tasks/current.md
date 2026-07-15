@@ -58,7 +58,18 @@ Added the native iOS widget scaffold:
 
 ## Current recommended task
 
-Install CocoaPods and run the generated iOS app:
+Wire the no-database sharing helpers into the app UI:
+
+- add a "Share Rune" action for the active Rune;
+- call `shareRune(activeRune)` from `src/features/sharing`;
+- register `pixelrune://share` deep-link handling;
+- decode incoming payloads with `decodeRuneSharePayload`;
+- show a preview/accept step before import;
+- persist accepted payloads with `importSharedRune`;
+- let the recipient activate the imported Rune using the existing active Rune
+  selection flow.
+
+After that, continue validating the generated iOS widget app:
 
 - install CocoaPods locally if `pod --version` is unavailable;
 - run `npx pod-install ios`;
@@ -73,6 +84,9 @@ Install CocoaPods and run the generated iOS app:
 - The app-to-widget writer bridge is implemented through generated native iOS
   files. It requires a development/prebuild app; Expo Go cannot load it.
 - Do not start Supabase sharing until local selection and widget architecture are clear.
+- The first sharing mode is no-database share-sheet/deep-link payload sharing.
+  Supabase should wait until the product needs server-side inboxes,
+  notifications, cross-device sync, or abuse controls.
 - The first WidgetKit proof of concept should target the small iOS widget size.
 - Active Rune persistence uses `expo-secure-store` for the selected built-in Rune ID. The later WidgetKit handoff still needs App Group shared storage for the serialized active Rune payload.
 

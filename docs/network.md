@@ -19,6 +19,7 @@ It covers:
 React Native app
   -> local app storage
   -> App Group shared storage
+  -> operating system share sheet
   -> Supabase
   -> PostHog
   -> Sentry
@@ -130,7 +131,62 @@ accepted_at timestamptz nullable
 
 ## Sharing flow
 
-Initial account-based flow:
+Initial no-database flow:
+
+```txt
+Sender chooses Rune
+App serializes Rune into a versioned share payload
+App encodes payload as a pixelrune://share?payload=... URL
+Sender chooses a delivery channel in the OS share sheet
+Recipient opens the share URL in Pixel Rune
+App decodes and validates the payload
+App adds the received Rune to local custom Runes
+Recipient can set the received Rune as the active widget Rune
+App writes active Rune payload to App Group storage
+Widget updates when iOS allows refresh
+```
+
+Current implementation:
+
+- Codec: `src/features/sharing/runeShareCodec.ts`.
+- Share sheet helper: `src/features/sharing/runeShareService.ts`.
+- Import helper: `importSharedRune`, which validates the payload and persists it
+  as a local custom Rune.
+- No Contacts permission is required for this flow.
+- No Pixel Rune backend or database is required for this flow.
+
+Payload URL shape:
+
+```txt
+pixelrune://share?payload=<base64url-json>
+```
+
+The decoded JSON is versioned:
+
+```json
+{
+  "version": 1,
+  "kind": "pixel-rune-share",
+  "sharedAt": "2026-07-15T00:00:00.000Z",
+  "rune": {
+    "id": "heart-default",
+    "name": "Heart",
+    "width": 16,
+    "height": 16,
+    "backgroundColor": "#101018",
+    "pixels": [
+      { "x": 3, "y": 2, "color": "#FF4D8D" }
+    ]
+  },
+  "note": "optional short note"
+}
+```
+
+The recipient app should require explicit user action before making an imported
+Rune active. Imported Runes can be saved locally first, then activated like any
+other custom Rune.
+
+Future account-based flow, if inbox-style sharing becomes necessary:
 
 ```txt
 Sender chooses Rune
@@ -153,11 +209,16 @@ App imports Rune
 Recipient can save or activate Rune
 ```
 
-Decision pending: choose account-based sharing or invite-link sharing for MVP.
+Decision: use encoded share-sheet/deep-link sharing for the first sharing
+version. Supabase remains a later option for inboxes, cross-device sync,
+notifications, abuse controls, or relationship/social features.
 
 ## Authentication
 
-Authentication is only required once sharing needs identity.
+Authentication is only required once sharing needs server-side identity.
+
+The no-database share-sheet flow does not require accounts because the sender
+delivers the payload through a channel chosen by the user outside Pixel Rune.
 
 Potential providers:
 
@@ -212,6 +273,9 @@ Rules:
 - Treat user-created Runes as user data.
 - Use Supabase Row Level Security before real users.
 - Keep widget payload local unless the user shares it.
+- Do not request Contacts permission for basic sharing; the OS share sheet is
+  sufficient and avoids collecting address book data.
+- Validate imported Rune payloads before persistence.
 - Avoid collecting unnecessary motion data.
 - If motion is used, process it locally and do not upload raw sensor streams.
 
@@ -227,5 +291,5 @@ The product must not promise:
 The product can promise:
 
 - selecting a Rune in the app updates the widget;
-- received Runes can be activated in the widget;
+- received Runes can be imported, accepted, and activated in the widget;
 - in-app previews can be interactive and motion-reactive.

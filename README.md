@@ -14,9 +14,9 @@ The app lets users pick a built-in Rune or paint their own, then save the active
 
 ## Product preview
 
-| Choose a Rune | Create a Rune |
-| --- | --- |
-| ![Pixel Rune selection screen](assets/screenshots/pixel-rune-rune-screen.png) | ![Pixel Rune creation screen](assets/screenshots/pixel-rune-create-screen.png) |
+| Choose a Rune | Create a Rune | Discover Runes |
+| --- | --- | --- |
+| ![Pixel Rune selection screen](assets/screenshots/pixel-rune-rune-screen.png) | ![Pixel Rune creation screen](assets/screenshots/pixel-rune-create-screen.png) | ![Pixel Rune community screen](assets/screenshots/pixel-rune-community-screen.png) |
 
 ## What the app does
 
@@ -24,8 +24,8 @@ The app lets users pick a built-in Rune or paint their own, then save the active
 - Select one active Rune and keep it saved locally on the device.
 - Preview the selected Rune in the app.
 - Paint a custom 16×16 Rune with a simple grid editor.
+- Explore a community area prepared for shared Runes.
 - Store Rune data in a serializable payload designed to be shared with a native iOS WidgetKit widget.
-- Keep basic app readiness diagnostics available without interrupting the main Rune flow.
 
 ## iOS widget direction
 
@@ -45,7 +45,8 @@ The current build demonstrates the core Rune loop:
 2. preview it in the app;
 3. save the selected Rune locally;
 4. prepare the selected Rune payload for native widget sync;
-5. create custom Runes from a 16×16 editor.
+5. create custom Runes from a 16×16 editor;
+6. preview the future community discovery surface.
 
 Native WidgetKit support requires an iOS development/prebuild build or EAS build. Expo Go can display the app screens, but it cannot include the custom native widget bridge.
 
@@ -55,7 +56,7 @@ Pixel Rune should be presented as a polished personalization app:
 
 > Create and collect tiny pixel-art Runes, choose the one that matches your mood, and keep it visible through an iPhone home screen widget.
 
-The first App Store submission should focus on the local Rune and widget experience before adding accounts, sharing, premium packs, or subscriptions.
+The first App Store submission should focus on the local Rune, creation, and widget experience. Community publishing, accounts, premium packs, and subscriptions should only ship once they are complete and clearly described.
 
 ## Platform
 

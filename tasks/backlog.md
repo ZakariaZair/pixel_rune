@@ -31,11 +31,15 @@
 
 ## Phase 3 - Sharing
 
-- [ ] Define sharing mode: account-based or invite-link.
+- [x] Define sharing mode: no-database share-sheet/deep-link payload first.
 - [ ] Create Supabase schema.
 - [ ] Add RLS policies.
-- [ ] Add send Rune flow.
-- [ ] Add receive/accept Rune flow.
+- [x] Add share payload encode/decode helpers.
+- [x] Add native share sheet helper.
+- [x] Add local import helper for received Rune payloads.
+- [ ] Register deep link handling for `pixelrune://share`.
+- [ ] Wire send Rune action into the app UI.
+- [ ] Wire receive/import/accept Rune flow into the app UI.
 - [ ] Add optional notifications plan.
 
 ## Phase 4 - Store readiness
